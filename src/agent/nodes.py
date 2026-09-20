@@ -316,7 +316,16 @@ class InvestigationNodes:
             validator = get_grounding_validator()
             prompt_context = rag_data["rendered_prompt_context"]
             messages = [
-                {"role": "system", "content": "You are a lead fraud investigator analyzing financial graph evidence grounded by GraphRAG. Reason carefully about observations, hypotheses, and required next steps, citing provenance IDs ([POLICY-xx], [GRAPH-xx], [CASE-xx]) where applicable."},
+                {
+                    "role": "system",
+                    "content": (
+                        "You are a lead fraud investigator analyzing financial graph evidence grounded by GraphRAG. "
+                        "Reason carefully about observations, hypotheses, and required next steps, citing provenance IDs "
+                        "([POLICY-xx], [GRAPH-xx], [CASE-xx]) where applicable.\n"
+                        "For findings, the 'source' field must strictly be one of: 'graph', 'document', 'customer', or 'external'. "
+                        "All policy rules (e.g. POLICY-R1 through POLICY-R10), matrices, guidelines, and typology definitions must be classified under source: 'document'."
+                    )
+                },
                 {"role": "user", "content": f"Analyze this investigation context:\n{prompt_context}"}
             ]
             try:

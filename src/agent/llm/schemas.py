@@ -5,7 +5,7 @@ evidence citations, and final fraud synthesis.
 """
 
 from typing import Dict, List, Optional, Any, Literal
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class ToolCallProposal(BaseModel):
@@ -29,7 +29,12 @@ class StructuredFinding(BaseModel):
     claim: str = Field(..., description="Factual claim or derived conclusion")
     source: Literal["graph", "document", "customer", "external"] = Field(
         ...,
-        description="Evidence source category"
+        description=(
+            "Evidence source category: must be one of 'graph' (TigerGraph database/queries), "
+            "'document' (governing policies, matrix rules, typologies, regulatory requirements), "
+            "'customer' (direct verification/inquiry responses), or 'external' (third-party intelligence/benchmarks). "
+            "All policy rules (e.g. POLICY-R1 to R10) and matrix documents MUST be classified as 'document'."
+        )
     )
     ref: str = Field(..., description="Query name, document name, or data table reference")
     entity_ids: List[str] = Field(
@@ -37,6 +42,21 @@ class StructuredFinding(BaseModel):
         description="Specific entity IDs supporting this finding (txns, cards, customers, cases, devices)"
     )
     confidence: float = Field(default=1.0, ge=0.0, le=1.0)
+
+    @field_validator("source", mode="before")
+    @classmethod
+    def normalize_source(cls, v: Any) -> Any:
+        """
+        Normalizes policy or rule document sources to canonical 'document' if LLM outputs
+        'policy', 'policy_matrix', 'guidelines', 'rules', etc., preventing validation crashes
+        or unnecessary repair roundtrips.
+        """
+        if isinstance(v, str):
+            clean = v.strip().lower()
+            if clean in ("policy", "policies", "policy_matrix", "guideline", "guidelines", "rule", "rules", "doc", "docs"):
+                return "document"
+            return clean
+        return v
 
 
 class EvidenceRequestProposal(BaseModel):

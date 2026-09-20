@@ -15,6 +15,7 @@ from typing import Dict, Any
 
 from src.agent.state import InvestigationState, CaseStatus, StopReason
 from src.agent.tools.contracts import InvestigationTools
+from pydantic import ValidationError
 from src.agent.llm.base import BaseLLMProvider, LLMResponse, TokenUsage, redact_credentials
 from src.agent.llm.schemas import (
     LLMReasoningStep,
@@ -85,6 +86,51 @@ class TestLLMProviderAbstraction:
     def test_provider_factory(self):
         p1 = get_llm_provider("mock")
         assert isinstance(p1, MockLLMProvider)
+
+    def test_structured_finding_source_policy_normalization(self):
+        """Model-facing source='policy' or 'policy_matrix' must normalize to 'document'."""
+        # 1. source='policy' -> 'document'
+        f1 = StructuredFinding(claim="Rule R1 triggered", source="policy", ref="POLICY-R1")
+        assert f1.source == "document"
+
+        # 2. source='policy_matrix' -> 'document'
+        f2 = StructuredFinding(claim="Rule R3 charge confirmed", source="policy_matrix", ref="POLICY-R3")
+        assert f2.source == "document"
+
+        # 3. Canonical sources remain valid
+        assert StructuredFinding(claim="Live txn", source="graph", ref="3514030").source == "graph"
+        assert StructuredFinding(claim="Case doc", source="document", ref="POLICY-R6").source == "document"
+        assert StructuredFinding(claim="Cardholder call", source="customer", ref="inquiry").source == "customer"
+        assert StructuredFinding(claim="External feed", source="external", ref="lexis").source == "external"
+
+        # 4. Unknown sources still raise ValidationError
+        with pytest.raises(ValidationError):
+            StructuredFinding(claim="Bad claim", source="hallucinated_source_abc", ref="ref")
+
+    def test_llm_reasoning_step_with_policy_source_succeeds_without_repair(self):
+        """When LLM returns findings with source='policy', LLMReasoningStep validates on first attempt."""
+        raw_llm_data = {
+            "thought": "Synthesizing evidence with policy rules.",
+            "observations": ["Observed cross-region activity"],
+            "hypotheses": ["Card testing"],
+            "findings": [
+                {"claim": "Txn amount is $77.07", "source": "graph", "ref": "3514030", "entity_ids": ["3514030"]},
+                {"claim": "Policy R1 applies to weak signals", "source": "policy", "ref": "POLICY-R1", "entity_ids": []}
+            ],
+            "uncertainty": "low"
+        }
+        step = LLMReasoningStep(**raw_llm_data)
+        assert len(step.findings) == 2
+        assert step.findings[0].source == "graph"
+        assert step.findings[1].source == "document"
+
+    def test_assess_evidence_prompt_instructs_allowed_sources_and_document_policy(self):
+        """Model-facing prompt in assess_evidence must explicitly instruct allowed source values."""
+        import inspect
+        from src.agent.nodes import InvestigationNodes
+        source_code = inspect.getsource(InvestigationNodes.assess_evidence)
+        assert "'graph', 'document', 'customer', or 'external'" in source_code
+        assert "must be classified under source: 'document'" in source_code
 
 
 class TestGroundingAndIntegrity:

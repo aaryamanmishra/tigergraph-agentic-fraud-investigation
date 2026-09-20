@@ -31,8 +31,12 @@ class OpenAIProvider(BaseLLMProvider):
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
         model_name: Optional[str] = None,
-        timeout_seconds: int = 45
+        timeout_seconds: int = 45,
+        provider_name: str = "openai"
     ):
+        self.provider_name = provider_name
+        self.provider = provider_name
+        self.is_real = True
         self.api_key = api_key or os.environ.get("OPENAI_API_KEY", "")
         self.base_url = (base_url or os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1")).rstrip("/")
         model = model_name or os.environ.get("OPENAI_MODEL", "gpt-4o")
@@ -42,7 +46,8 @@ class OpenAIProvider(BaseLLMProvider):
     def _call_api(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         """Executes HTTP POST request with bearer authentication and credential scrubbing."""
         if not self.api_key:
-            raise ValueError("OPENAI_API_KEY is not configured in environment.")
+            env_var = "OPENAI_API_KEY" if self.provider_name == "openai" else f"{self.provider_name.upper()}_API_KEY"
+            raise ValueError(f"{env_var} is not configured in environment.")
 
         endpoint = f"{self.base_url}/chat/completions"
         data = json.dumps(payload).encode("utf-8")
@@ -51,7 +56,8 @@ class OpenAIProvider(BaseLLMProvider):
             data=data,
             headers={
                 "Content-Type": "application/json",
-                "Authorization": f"Bearer {self.api_key}"
+                "Authorization": f"Bearer {self.api_key}",
+		"User-Agent": "tigergraph-fraud-investigation-agent/1.0",
             },
             method="POST"
         )
@@ -63,10 +69,14 @@ class OpenAIProvider(BaseLLMProvider):
         except urllib.error.HTTPError as e:
             err_body = e.read().decode("utf-8") if e.fp else ""
             clean_err = redact_credentials(f"HTTP {e.code}: {e.reason} - {err_body}")
+            if self.api_key and len(self.api_key) > 4:
+                clean_err = clean_err.replace(self.api_key, "[REDACTED_API_KEY]")
             logger.error(f"LLM API Error: {clean_err}")
             raise RuntimeError(f"LLM API call failed: {clean_err}") from None
         except Exception as e:
             clean_err = redact_credentials(str(e))
+            if self.api_key and len(self.api_key) > 4:
+                clean_err = clean_err.replace(self.api_key, "[REDACTED_API_KEY]")
             logger.error(f"LLM Connection Error: {clean_err}")
             raise RuntimeError(f"LLM connection error: {clean_err}") from None
 
