@@ -125,21 +125,61 @@ class OpenAIProvider(BaseLLMProvider):
     ) -> T:
         """
         Requests structured output matching the JSON schema of response_model.
+        Unifies system prompts, reinforces explicit JSON requirements, and gracefully
+        handles provider-side json_validate_failed errors.
         """
         schema_def = response_model.model_json_schema()
-        system_injection = {
-            "role": "system",
-            "content": f"You are a fraud investigation reasoning engine. You must output STRICT VALID JSON conforming to this schema:\n{json.dumps(schema_def, indent=2)}\nDo not include any conversational preamble or markdown code fences."
-        }
-        augmented_messages = [system_injection] + list(messages)
-
-        resp = self.generate(
-            messages=augmented_messages,
-            temperature=temperature,
-            max_tokens=max_tokens,
-            response_format={"type": "json_object"},
-            **kwargs
+        schema_text = json.dumps(schema_def, indent=2)
+        system_instruction = (
+            f"You are a fraud investigation reasoning engine. "
+            f"You must output STRICT VALID JSON conforming to this schema:\n{schema_text}\n"
+            f"Do not include any conversational preamble or markdown code fences."
         )
+
+        # Merge system messages to prevent multiple consecutive system roles that confuse Groq/OpenAI proxies
+        system_parts = [system_instruction]
+        user_and_assistant_messages = []
+        for msg in messages:
+            if msg.get("role") == "system":
+                system_parts.append(msg.get("content", ""))
+            else:
+                user_and_assistant_messages.append(msg)
+
+        final_messages = [{"role": "system", "content": "\n\n".join(system_parts)}]
+
+        # Ensure user message explicitly mentions JSON for strict provider filters
+        for msg in user_and_assistant_messages:
+            if msg.get("role") == "user":
+                content = msg.get("content", "")
+                if "json" not in content.lower():
+                    content = f"{content}\n\nRespond strictly with a single valid JSON object adhering to the schema."
+                final_messages.append({"role": "user", "content": content})
+            else:
+                final_messages.append(msg)
+
+        try:
+            resp = self.generate(
+                messages=final_messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                response_format={"type": "json_object"},
+                **kwargs
+            )
+        except RuntimeError as e:
+            # Intercept Groq/provider server-side json_validate_failed and retry with unconstrained generation
+            if "json_validate_failed" in str(e):
+                logger.warning(
+                    f"Provider rejected json_object response_format with json_validate_failed: {e}. "
+                    "Retrying with unconstrained generation and schema-guided prompt..."
+                )
+                resp = self.generate(
+                    messages=final_messages,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    **kwargs
+                )
+            else:
+                raise
 
         try:
             parsed_dict = self.repair_and_parse_json(resp.content)
@@ -147,10 +187,11 @@ class OpenAIProvider(BaseLLMProvider):
         except (json.JSONDecodeError, ValidationError) as e:
             logger.warning(f"Failed to parse structured output on first attempt: {e}. Retrying with repair prompt...")
             # Retry once with explicit correction prompt
-            repair_messages = list(augmented_messages) + [
+            repair_messages = list(final_messages) + [
                 {"role": "assistant", "content": resp.content},
-                {"role": "user", "content": f"The output failed validation with error: {e}. Please fix the JSON output to strictly match the schema."}
+                {"role": "user", "content": f"The output failed validation with error: {e}. Please fix the JSON output to strictly match the schema. Return ONLY valid JSON."}
             ]
-            repair_resp = self.generate(messages=repair_messages, temperature=0.0, response_format={"type": "json_object"})
+            repair_resp = self.generate(messages=repair_messages, temperature=0.0)
             parsed_dict = self.repair_and_parse_json(repair_resp.content)
             return response_model.model_validate(parsed_dict)
+

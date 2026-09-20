@@ -9,6 +9,7 @@ import json
 import logging
 import urllib.request
 import urllib.error
+import urllib.parse
 from typing import Dict, List, Any, Optional
 
 from src.config import config
@@ -25,6 +26,7 @@ class GraphAdapter:
 
     def __init__(self, backend: Optional[str] = None):
         self.backend = backend or config.TG_BACKEND
+        self.graph_name = config.TG_GRAPH_NAME
         self.store: Optional[GraphStore] = None
         self._init_backend()
 
@@ -62,7 +64,7 @@ class GraphAdapter:
                 continue
         return False
 
-    def _tg_rest_query(self, query_name: str, params: Dict[str, Any]) -> Any:
+    def _tg_rest_query(self, query_name: str, params: Dict[str, Any], use_post: bool = False) -> Any:
         """Executes a parameterized query against TigerGraph REST++ endpoint."""
         url = f"{config.get_rest_base_url()}/restpp/query/{config.TG_GRAPH_NAME}/{query_name}"
         headers = {
@@ -73,21 +75,37 @@ class GraphAdapter:
         if token:
             headers["Authorization"] = f"Bearer {token}"
 
-        import urllib.parse
-        encoded_params = urllib.parse.urlencode(
-            {k: str(v) for k, v in params.items() if v is not None},
-            quote_via=urllib.parse.quote
-        )
-        if encoded_params:
-            url = f"{url}?{encoded_params}"
+        if use_post:
+            data = json.dumps(params).encode("utf-8")
+            req = urllib.request.Request(url, data=data, headers=headers, method="POST")
+        else:
+            clean_params = {}
+            for k, v in params.items():
+                if v is None:
+                    continue
+                if isinstance(v, (list, tuple, set)):
+                    clean_list = [str(item) for item in v if item]
+                    if clean_list:
+                        clean_params[k] = clean_list
+                else:
+                    clean_params[k] = str(v)
 
-        req = urllib.request.Request(url, headers=headers)
+            encoded_params = urllib.parse.urlencode(
+                clean_params,
+                doseq=True,
+                quote_via=urllib.parse.quote
+            )
+            if encoded_params:
+                url = f"{url}?{encoded_params}"
+
+            req = urllib.request.Request(url, headers=headers)
+
         try:
             with urllib.request.urlopen(req, timeout=10) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
                 if data.get("error"):
                     msg = data.get("message", "")
-                    if "Failed to convert user vertex id" in msg:
+                    if "Failed to convert user vertex id" in msg and not use_post:
                         return []
                     raise RuntimeError(f"TigerGraph query error: {msg}")
                 return data.get("results", [])
@@ -98,9 +116,10 @@ class GraphAdapter:
                 msg = err_json.get("message") or err_body
             except Exception:
                 msg = err_body
-            if "Failed to convert user vertex id" in msg:
+            if "Failed to convert user vertex id" in msg and not use_post:
                 return []
             raise RuntimeError(f"TigerGraph REST++ HTTP {e.code}: {msg}")
+
 
     # =========================================================================
     # CORE INVESTIGATION QUERY INTERFACES
@@ -609,50 +628,96 @@ class GraphAdapter:
     def write_case(self, case_dict: Dict[str, Any]) -> Dict[str, Any]:
         """
         Writes completed investigation case back to graph (Section 3a persistence & memory).
+        Supports both flat case records and nested schema dictionaries.
         Idempotent operation.
         """
         case_id = case_dict.get("case_id")
         inputs = {"case_id": case_id}
 
+        case_info = case_dict.get("case", {})
+        now_iso = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+        opened_at = case_dict.get("opened_at") or now_iso
+        closed_at = case_dict.get("closed_at") or now_iso
+
+        outcome = case_dict.get("outcome")
+        if not outcome:
+            outcome = "confirmed_fraud" if case_info.get("verdict") == "fraud" else "cleared"
+
+        pattern = case_dict.get("pattern") or case_info.get("pattern", "none")
+        first_fraud_txn_id = case_dict.get("first_fraud_txn_id") or case_info.get("first_suspicious_txn_id", "")
+
+        affected_txns = case_dict.get("affected_txns")
+        if affected_txns is None:
+            affected_txns = case_info.get("affected_txn_ids", [])
+
+        connected_cards = case_dict.get("connected_cards")
+        if connected_cards is None:
+            connected_cards = case_info.get("connected_card_ids", [])
+
+        card_id = case_dict.get("primary_card_id") or case_dict.get("card_id") or case_info.get("card_id", "")
+        analyst_notes = case_dict.get("analyst_notes") or case_info.get("summary", "")
+
+        if "exposure_usd" in case_dict and case_dict["exposure_usd"] is not None:
+            exposure_usd = float(case_dict["exposure_usd"])
+        else:
+            exposure_usd = float(case_info.get("exposure_usd", 0.0) or 0.0)
+
+        if "n_txns" in case_dict and case_dict["n_txns"] is not None:
+            n_txns = int(case_dict["n_txns"])
+        else:
+            n_txns = len(affected_txns)
+
+        actions_list = case_dict.get("next_best_actions", {}).get("final", [])
+        if actions_list:
+            actions_taken = "|".join([a.get("action", "") for a in actions_list if a.get("action")])
+        else:
+            actions_taken = case_dict.get("actions_taken", "")
+
+        report_filed = "No"
+        if "sar" in case_dict and isinstance(case_dict["sar"], dict):
+            report_filed = "Yes" if case_dict["sar"].get("file") else "No"
+        elif case_dict.get("report_filed") in ("SAR", "Yes", True):
+            report_filed = "Yes"
+
         if self.backend == "tigergraph":
-            case_info = case_dict.get("case", {})
-            now_iso = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
             tg_params = {
                 "case_id": case_id,
-                "opened_at": case_dict.get("opened_at", now_iso),
-                "closed_at": case_dict.get("closed_at", now_iso),
-                "outcome": "confirmed_fraud" if case_info.get("verdict") == "fraud" else "cleared",
-                "pattern": case_info.get("pattern", "none"),
-                "first_fraud_txn_id": case_info.get("first_suspicious_txn_id", ""),
-                "n_txns": len(case_info.get("affected_txn_ids", [])),
-                "exposure_usd": float(case_info.get("exposure_usd", 0.0) or 0.0),
-                "actions_taken": "|".join([a.get("action", "") for a in case_dict.get("next_best_actions", {}).get("final", [])]),
-                "report_filed": "Yes" if case_dict.get("sar", {}).get("file") else "No",
-                "analyst_notes": case_info.get("summary", ""),
-                "primary_card_id": case_info.get("card_id", ""),
-                "affected_txns": case_info.get("affected_txn_ids", []),
-                "connected_cards": case_info.get("connected_card_ids", [])
+                "opened_at": opened_at,
+                "closed_at": closed_at,
+                "outcome": outcome,
+                "pattern": pattern,
+                "first_fraud_txn_id": first_fraud_txn_id,
+                "n_txns": n_txns,
+                "exposure_usd": exposure_usd,
+                "actions_taken": actions_taken,
+                "report_filed": report_filed,
+                "analyst_notes": analyst_notes,
+                "primary_card_id": card_id,
+                "affected_txns": affected_txns,
+                "connected_cards": connected_cards
             }
-            res = self._tg_rest_query("write_case", tg_params)
+            res = self._tg_rest_query("write_case", tg_params, use_post=True)
             status = "SUCCESS"
+            if res and isinstance(res, list) and isinstance(res[0], dict):
+                status = res[0].get("status", "SUCCESS")
+
         else:
             store = self.store or get_graph_store(config.DATA_DIR)
-            case_info = case_dict.get("case", {})
             cc = ClosedCaseVertex(
                 case_id=case_id,
-                opened_at=case_dict.get("opened_at", datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")),
-                closed_at=datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
-                outcome="confirmed_fraud" if case_info.get("verdict") == "fraud" else "cleared",
-                pattern=case_info.get("pattern", "none"),
-                first_fraud_txn_id=case_info.get("first_suspicious_txn_id", ""),
-                n_txns=len(case_info.get("affected_txn_ids", [])),
-                exposure_usd=case_info.get("exposure_usd", 0.0),
-                actions_taken="|".join([a.get("action", "") for a in case_dict.get("next_best_actions", {}).get("final", [])]),
-                report_filed="Yes" if case_dict.get("sar", {}).get("file") else "No",
-                analyst_notes=case_info.get("summary", ""),
-                card_id=case_info.get("card_id", ""),
-                txn_ids=case_info.get("affected_txn_ids", []),
-                connected_card_ids=case_info.get("connected_card_ids", [])
+                opened_at=opened_at,
+                closed_at=closed_at,
+                outcome=outcome,
+                pattern=pattern,
+                first_fraud_txn_id=first_fraud_txn_id,
+                n_txns=n_txns,
+                exposure_usd=exposure_usd,
+                actions_taken=actions_taken,
+                report_filed=report_filed,
+                analyst_notes=analyst_notes,
+                card_id=card_id,
+                txn_ids=affected_txns,
+                connected_card_ids=connected_cards
             )
             store.closed_cases[case_id] = cc
             if cc.card_id:
@@ -674,6 +739,7 @@ class GraphAdapter:
             "evidence_type": "case_writeback",
             "source": self.backend
         }
+
 
 
 _GLOBAL_ADAPTER: Optional[GraphAdapter] = None

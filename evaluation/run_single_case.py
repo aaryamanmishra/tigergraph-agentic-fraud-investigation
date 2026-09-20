@@ -96,7 +96,14 @@ def run_case(
     print(f"Workflow finished in: {elapsed_s}s (Engine Latency: {state.latency_ms}ms)")
     print(f"Tool Calls Executed ({len(state.tool_calls)}):")
     for tc in state.tool_calls:
-        print(f"  - {tc.get('tool_name')}: success={tc.get('success')}, latency={tc.get('latency_ms')}ms")
+        err_info = f" (error: {tc.get('error')})" if tc.get("error") else ""
+        print(f"  - {tc.get('tool_name')}: success={tc.get('success')}, latency={tc.get('latency_ms')}ms{err_info}")
+
+    if state.errors:
+        print(f"\nExecution Errors / Warnings ({len(state.errors)}):")
+        for err in state.errors:
+            print(f"  [!] {err}")
+
 
     print(f"\nReasoning Timeline ({len(state.investigation_timeline)} steps):")
     for ev in state.investigation_timeline:
@@ -181,7 +188,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run single case fraud investigation")
     parser.add_argument("--case", type=str, default="HHG-001", help="Target Case ID (e.g. HHG-001, HHG-014)")
     parser.add_argument("--backend", type=str, default=os.environ.get("TG_BACKEND", "tigergraph"), choices=["in_memory", "tigergraph"], help="Graph backend")
-    parser.add_argument("--provider", type=str, default="gemini", choices=["gemini", "openai", "mock"], help="LLM provider")
+    parser.add_argument("--provider", type=str, default="gemini", choices=["gemini", "openai", "mistral", "mock"], help="LLM provider")
     parser.add_argument("--output", type=str, default=None, help="Output path for answer JSON")
     args = parser.parse_args()
 

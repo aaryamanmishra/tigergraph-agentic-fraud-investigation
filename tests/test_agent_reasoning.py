@@ -10,8 +10,10 @@ Tests:
 - Schema validation and Entity ID integrity
 """
 
+import json
 import pytest
 from typing import Dict, Any
+
 
 from src.agent.state import InvestigationState, CaseStatus, StopReason
 from src.agent.tools.contracts import InvestigationTools
@@ -296,3 +298,248 @@ class TestBenchmarkEndToEndReasoning:
         final_actions = [a["action"] for a in answer["next_best_actions"]["final"]]
         assert "FILE_REPORT" in final_actions
         assert "CREATE_CASE" in final_actions
+        # Verify case was written to graph
+        assert state.written_to_graph is True
+        # Verify timeline step recorded SUCCESS, not SKIPPED
+        wc_steps = [e for e in state.investigation_timeline if e.stage == "write_case"]
+        assert len(wc_steps) == 1
+        assert wc_steps[0].result == "SUCCESS"
+
+
+class TestGroqStructuredResilienceAndCasePersistence:
+    """Regression tests for Groq json_validate_failed fallback and write_case persistence."""
+
+    def test_openai_provider_merges_system_messages_and_reinforces_json(self):
+        from src.agent.llm.openai_provider import OpenAIProvider
+        provider = OpenAIProvider(api_key="mock-key", base_url="https://mock.api/v1")
+
+        recorded_messages = []
+
+        def mock_generate(messages, **kwargs):
+            nonlocal recorded_messages
+            recorded_messages = messages
+            return LLMResponse(
+                content='{"thought": "Analyzed successfully", "findings": []}',
+                token_usage=TokenUsage(100, 20, 120),
+                model="mock"
+            )
+
+        provider.generate = mock_generate
+
+        input_messages = [
+            {"role": "system", "content": "You are a fraud investigator."},
+            {"role": "user", "content": "Review this transaction."}
+        ]
+
+        res = provider.generate_structured(input_messages, LLMReasoningStep)
+        assert isinstance(res, LLMReasoningStep)
+        assert res.thought == "Analyzed successfully"
+
+        # Verify only 1 system message is present
+        system_msgs = [m for m in recorded_messages if m["role"] == "system"]
+        assert len(system_msgs) == 1
+        assert "You are a fraud investigation reasoning engine" in system_msgs[0]["content"]
+        assert "You are a fraud investigator" in system_msgs[0]["content"]
+
+        # Verify user message explicitly mentions JSON
+        user_msgs = [m for m in recorded_messages if m["role"] == "user"]
+        assert len(user_msgs) == 1
+        assert "json" in user_msgs[0]["content"].lower()
+
+    def test_openai_provider_handles_json_validate_failed_resilience(self):
+        from src.agent.llm.openai_provider import OpenAIProvider
+        provider = OpenAIProvider(api_key="mock-key", base_url="https://mock.api/v1")
+
+        calls = []
+
+        def mock_generate(messages, response_format=None, **kwargs):
+            calls.append({"messages": messages, "response_format": response_format})
+            if response_format == {"type": "json_object"}:
+                # Simulate Groq HTTP 400 json_validate_failed
+                raise RuntimeError("LLM API call failed: HTTP 400: Bad Request - {'error': {'message': 'Failed to validate JSON.', 'code': 'json_validate_failed', 'failed_generation': ''}}")
+            # Unconstrained fallback generation succeeds
+            return LLMResponse(
+                content='{"thought": "Recovered from json_validate_failed and verified reasoning.", "findings": [{"claim": "Shared device detected", "source": "graph", "ref": "get_device_neighbors"}]}',
+                token_usage=TokenUsage(150, 35, 185),
+                model="mock"
+            )
+
+        provider.generate = mock_generate
+
+        input_messages = [
+            {"role": "system", "content": "Investigator instructions."},
+            {"role": "user", "content": "Analyze HHG-014 context."}
+        ]
+
+        step = provider.generate_structured(input_messages, LLMReasoningStep)
+        assert isinstance(step, LLMReasoningStep)
+        assert "Recovered from json_validate_failed" in step.thought
+        assert len(step.findings) == 1
+        assert step.findings[0].source == "graph"
+
+        # Verify two generate calls: first with json_object, second without response_format
+        assert len(calls) == 2
+        assert calls[0]["response_format"] == {"type": "json_object"}
+        assert calls[1]["response_format"] is None
+
+    def test_adapter_write_case_dual_schema_support(self, mock_tools):
+        adapter = mock_tools.adapter
+
+        # 1. Test Flat schema (from nodes.py)
+        flat_record = {
+            "case_id": "TEST-FLAT-001",
+            "opened_at": "2026-09-21 00:00:00",
+            "closed_at": "2026-09-21 00:05:00",
+            "outcome": "confirmed_fraud",
+            "pattern": "multi_card_device_cluster",
+            "first_fraud_txn_id": "3478561",
+            "n_txns": 1,
+            "exposure_usd": 74.96,
+            "actions_taken": "CREATE_CASE|FILE_REPORT",
+            "report_filed": "SAR",
+            "analyst_notes": "Flat record test.",
+            "primary_card_id": "C13487-K1",
+            "affected_txns": ["3478561"],
+            "connected_cards": ["C13487-K1"]
+        }
+        res_flat = adapter.write_case(flat_record)
+        assert res_flat["results"][0]["status"] == "SUCCESS"
+
+        # Check retrieval in memory store
+        similar = adapter.get_similar_closed_cases(card_id="C13487-K1")
+        found_ids = [c["case_id"] for c in similar["results"]]
+        assert "TEST-FLAT-001" in found_ids
+
+        # 2. Test Nested schema (from answer_schema.md)
+        nested_record = {
+            "case_id": "TEST-NESTED-002",
+            "opened_at": "2026-09-21 00:00:00",
+            "case": {
+                "verdict": "fraud",
+                "pattern": "multi_card_device_cluster",
+                "first_suspicious_txn_id": "3478561",
+                "affected_txn_ids": ["3478561"],
+                "exposure_usd": 74.96,
+                "summary": "Nested record test.",
+                "card_id": "C13487-K1",
+                "connected_card_ids": ["C13487-K1"]
+            },
+            "next_best_actions": {
+                "final": [{"action": "CREATE_CASE"}, {"action": "FILE_REPORT"}]
+            },
+            "sar": {"file": True}
+        }
+        res_nested = adapter.write_case(nested_record)
+        assert res_nested["results"][0]["status"] == "SUCCESS"
+
+        similar2 = adapter.get_similar_closed_cases(card_id="C13487-K1")
+        found_ids2 = [c["case_id"] for c in similar2["results"]]
+        assert "TEST-NESTED-002" in found_ids2
+
+    def test_write_case_timeline_status_reporting(self, mock_tools):
+        from src.agent.nodes import InvestigationNodes
+
+        # Case A: Legitimate verdict without CREATE_CASE -> SKIPPED_NOT_REQUIRED
+        state_legit = InvestigationState(case_id="TEST-LEGIT", flagged_txn_id="111", card_id="C1")
+        state_legit.verdict = "legitimate"
+        state_legit.recommended_actions = ["CLOSE_NO_FRAUD"]
+        state_legit = InvestigationNodes.write_case(state_legit, mock_tools)
+        assert state_legit.written_to_graph is False
+        assert state_legit.investigation_timeline[-1].result == "SKIPPED_NOT_REQUIRED"
+
+        # Case B: Fraud verdict -> SUCCESS
+        state_fraud = InvestigationState(case_id="TEST-FRAUD", flagged_txn_id="222", card_id="C2")
+        state_fraud.verdict = "fraud"
+        state_fraud.recommended_actions = ["CREATE_CASE", "BLOCK_CARD"]
+        state_fraud = InvestigationNodes.write_case(state_fraud, mock_tools)
+        assert state_fraud.written_to_graph is True
+        assert state_fraud.investigation_timeline[-1].result == "SUCCESS"
+
+    def test_write_case_failure_surfaces_underlying_error(self):
+        from src.agent.nodes import InvestigationNodes
+        from src.agent.tools.contracts import ToolExecutionResult
+        from unittest.mock import MagicMock
+
+        mock_tools = MagicMock()
+        mock_tools.write_case.return_value = ToolExecutionResult(
+            success=False,
+            tool_name="write_case",
+            source="tigergraph",
+            latency_ms=10.0,
+            error="TigerGraph REST++ HTTP 400: Failed to convert user vertex id to internal id"
+        )
+
+
+        state = InvestigationState(case_id="HHG-014", flagged_txn_id="3478561", card_id="C13487-K1")
+        state.verdict = "fraud"
+        state.recommended_actions = ["CREATE_CASE", "FILE_REPORT"]
+
+        result_state = InvestigationNodes.write_case(state, mock_tools)
+
+        # 1. Verify written_to_graph is False
+        assert result_state.written_to_graph is False
+
+        # 2. Verify underlying error is NOT swallowed, but captured in state.errors
+        assert len(result_state.errors) == 1
+        assert "TigerGraph REST++ HTTP 400: Failed to convert user vertex id" in result_state.errors[0]
+
+        # 3. Verify timeline records FAILED and contains error in evidence_discovered
+        last_event = result_state.investigation_timeline[-1]
+        assert last_event.stage == "write_case"
+        assert last_event.result == "FAILED"
+        assert "TigerGraph REST++ HTTP 400" in last_event.evidence_discovered
+
+        # 4. Verify tool call dictionary preserves the exact error
+        assert len(result_state.tool_calls) == 1
+        assert result_state.tool_calls[0]["success"] is False
+        assert "Failed to convert user vertex id" in result_state.tool_calls[0]["error"]
+
+    def test_adapter_tg_rest_query_uses_post_with_json_body(self):
+        from unittest.mock import patch, MagicMock
+        adapter = GraphAdapter(backend="tigergraph")
+
+        captured_request = []
+
+        def mock_urlopen(req, timeout=10):
+            captured_request.append(req)
+            resp = MagicMock()
+            resp.read.return_value = b'{"error": false, "results": [{"status": "SUCCESS", "persisted_id": "HHG-014"}]}'
+            resp.__enter__.return_value = resp
+            return resp
+
+
+        case_dict = {
+            "case_id": "HHG-014",
+            "opened_at": "2026-09-21 00:00:00",
+            "closed_at": "2026-09-21 00:00:00",
+            "outcome": "confirmed_fraud",
+            "pattern": "multi_card_device_cluster",
+            "first_fraud_txn_id": "3478561",
+            "n_txns": 1,
+            "exposure_usd": 74.96,
+            "actions_taken": "CREATE_CASE|FILE_REPORT",
+            "report_filed": "Yes",
+            "analyst_notes": "Test case notes",
+            "primary_card_id": "C13487-K1",
+            "affected_txns": ["3478561"],
+            "connected_cards": []
+        }
+
+        with patch("urllib.request.urlopen", side_effect=mock_urlopen):
+            res = adapter.write_case(case_dict)
+            assert res["results"][0]["status"] == "SUCCESS"
+
+        # Verify POST request was used with application/json body on the query request
+        req = captured_request[-1]
+        assert req.get_method() == "POST"
+        assert req.headers.get("Content-type") == "application/json"
+        
+        # Verify JSON payload was sent with empty list preserved
+        body_json = json.loads(req.data.decode("utf-8"))
+        assert body_json["case_id"] == "HHG-014"
+        assert body_json["primary_card_id"] == "C13487-K1"
+        assert body_json["affected_txns"] == ["3478561"]
+        assert body_json["connected_cards"] == []
+
+
+

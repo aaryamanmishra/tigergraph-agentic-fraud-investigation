@@ -598,23 +598,66 @@ class TigerGraphMCPClient:
         t0 = time.time()
         case_info = case_dict.get("case", {})
         now_str = time.strftime("%Y-%m-%d %H:%M:%S")
+        opened_at = case_dict.get("opened_at") or now_str
+        closed_at = case_dict.get("closed_at") or now_str
+
+        outcome = case_dict.get("outcome")
+        if not outcome:
+            outcome = "confirmed_fraud" if case_info.get("verdict") == "fraud" else "cleared"
+
+        pattern = case_dict.get("pattern") or case_info.get("pattern", "none")
+        first_fraud_txn_id = case_dict.get("first_fraud_txn_id") or case_info.get("first_suspicious_txn_id", "")
+
+        affected_txns = case_dict.get("affected_txns")
+        if affected_txns is None:
+            affected_txns = case_info.get("affected_txn_ids", [])
+
+        connected_cards = case_dict.get("connected_cards")
+        if connected_cards is None:
+            connected_cards = case_info.get("connected_card_ids", [])
+
+        card_id = case_dict.get("primary_card_id") or case_dict.get("card_id") or case_info.get("card_id", "")
+        analyst_notes = case_dict.get("analyst_notes") or case_info.get("summary", "")
+
+        if "exposure_usd" in case_dict and case_dict["exposure_usd"] is not None:
+            exposure_usd = float(case_dict["exposure_usd"])
+        else:
+            exposure_usd = float(case_info.get("exposure_usd", 0.0) or 0.0)
+
+        if "n_txns" in case_dict and case_dict["n_txns"] is not None:
+            n_txns = int(case_dict["n_txns"])
+        else:
+            n_txns = len(affected_txns)
+
+        actions_list = case_dict.get("next_best_actions", {}).get("final", [])
+        if actions_list:
+            actions_taken = "|".join([a.get("action", "") for a in actions_list if a.get("action")])
+        else:
+            actions_taken = case_dict.get("actions_taken", "")
+
+        report_filed = "No"
+        if "sar" in case_dict and isinstance(case_dict["sar"], dict):
+            report_filed = "Yes" if case_dict["sar"].get("file") else "No"
+        elif case_dict.get("report_filed") in ("SAR", "Yes", True):
+            report_filed = "Yes"
 
         write_params = {
             "case_id": case_id,
-            "opened_at": case_dict.get("opened_at", now_str),
-            "closed_at": case_dict.get("closed_at", now_str),
-            "outcome": "confirmed_fraud" if case_info.get("verdict") == "fraud" else "cleared",
-            "pattern": case_info.get("pattern", "none"),
-            "first_fraud_txn_id": case_info.get("first_suspicious_txn_id", ""),
-            "n_txns": len(case_info.get("affected_txn_ids", [])),
-            "exposure_usd": float(case_info.get("exposure_usd", 0.0) or 0.0),
-            "actions_taken": "|".join([a.get("action", "") for a in case_dict.get("next_best_actions", {}).get("final", [])]),
-            "report_filed": "Yes" if case_dict.get("sar", {}).get("file") else "No",
-            "analyst_notes": case_info.get("summary", ""),
-            "primary_card_id": case_info.get("card_id", ""),
-            "affected_txns": case_info.get("affected_txn_ids", []),
-            "connected_cards": case_info.get("connected_card_ids", [])
+            "opened_at": opened_at,
+            "closed_at": closed_at,
+            "outcome": outcome,
+            "pattern": pattern,
+            "first_fraud_txn_id": first_fraud_txn_id,
+            "n_txns": n_txns,
+            "exposure_usd": exposure_usd,
+            "actions_taken": actions_taken,
+            "report_filed": report_filed,
+            "analyst_notes": analyst_notes,
+            "primary_card_id": card_id,
+            "affected_txns": affected_txns,
+            "connected_cards": connected_cards
         }
+
 
         try:
             res = await self.tools_module.run_installed_query(
@@ -626,13 +669,18 @@ class TigerGraphMCPClient:
             raw = parse_mcp_text_response(res)
             latency_ms = round((time.time() - t0) * 1000, 2)
 
+            is_success = raw.get("success", False)
+            err_msg = None if is_success else (raw.get("error") or raw.get("message") or "MCP write_case returned unsuccessful status")
+
             return {
-                "success": raw.get("success", False),
+                "success": is_success,
                 "case_id": case_id,
-                "status": "SUCCESS" if raw.get("success") else "FAILED",
+                "status": "SUCCESS" if is_success else "FAILED",
                 "latency_ms": latency_ms,
+                "error": err_msg,
                 "source": "tigergraph_mcp"
             }
+
         except Exception as e:
             return {
                 "success": False,

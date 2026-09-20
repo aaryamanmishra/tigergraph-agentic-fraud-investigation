@@ -326,7 +326,7 @@ class InvestigationNodes:
                         "All policy rules (e.g. POLICY-R1 through POLICY-R10), matrices, guidelines, and typology definitions must be classified under source: 'document'."
                     )
                 },
-                {"role": "user", "content": f"Analyze this investigation context:\n{prompt_context}"}
+                {"role": "user", "content": f"Analyze this investigation context and return your findings strictly as a JSON object:\n{prompt_context}"}
             ]
             try:
                 llm_step = llm.generate_structured(messages, LLMReasoningStep)
@@ -591,7 +591,8 @@ class InvestigationNodes:
         """Stage 11: Persists completed investigation back to the graph."""
         state.case_status = CaseStatus.PERSISTING
 
-        if state.verdict == "fraud" or "CREATE_CASE" in state.recommended_actions:
+        attempted = state.verdict == "fraud" or "CREATE_CASE" in state.recommended_actions
+        if attempted:
             now_ts = time.strftime("%Y-%m-%d %H:%M:%S")
             case_record = {
                 "case_id": state.case_id,
@@ -607,22 +608,51 @@ class InvestigationNodes:
                 "analyst_notes": state.pattern_description or "Agentic investigation completed.",
                 "primary_card_id": state.card_id,
                 "affected_txns": state.affected_txn_ids,
-                "connected_cards": state.connected_card_ids
+                "connected_cards": state.connected_card_ids,
+                "case": {
+                    "verdict": state.verdict,
+                    "pattern": state.fraud_pattern,
+                    "first_suspicious_txn_id": state.first_suspicious_txn_id or (state.affected_txn_ids[0] if state.affected_txn_ids else ""),
+                    "affected_txn_ids": state.affected_txn_ids,
+                    "exposure_usd": state.exposure_usd,
+                    "summary": state.pattern_description or "Agentic investigation completed.",
+                    "card_id": state.card_id,
+                    "connected_card_ids": state.connected_card_ids
+                },
+                "next_best_actions": {
+                    "final": [{"action": act} for act in state.recommended_actions]
+                },
+                "sar": {"file": state.sar_required}
             }
             res = tools.write_case(case_record)
             state.tool_calls.append(res.to_dict())
             if res.success:
                 state.written_to_graph = True
                 state.graph_case_id = state.case_id
+            else:
+                last_error = res.error or "Unknown persistence error"
+                state.errors.append(f"Case persistence failed: {last_error}")
+
+        if not attempted:
+            result_str = "SKIPPED_NOT_REQUIRED"
+            evidence_str = "Case persistence status: skipped (not required for legitimate case without actions)"
+        elif state.written_to_graph:
+            result_str = "SUCCESS"
+            evidence_str = f"Case persistence status: written=True (persisted as {state.graph_case_id})"
+        else:
+            result_str = "FAILED"
+            evidence_str = f"Case persistence status: written=False (error: {last_error if 'last_error' in locals() else 'unknown'})"
 
         state.append_timeline_event(
             stage="write_case",
             tool_used="write_case",
-            evidence_discovered=f"Case persistence status: written={state.written_to_graph}",
-            result="SUCCESS" if state.written_to_graph else "SKIPPED_NOT_REQUIRED",
+            evidence_discovered=evidence_str,
+            result=result_str,
             state_change=f"written_to_graph -> {state.written_to_graph}"
         )
         return state
+
+
 
     @staticmethod
     def finish(state: InvestigationState, tools: InvestigationTools) -> InvestigationState:

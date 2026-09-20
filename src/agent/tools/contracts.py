@@ -7,9 +7,13 @@ Implements Requirement #4 and #5 (Typed Tool Contracts & Context-Size Control).
 from dataclasses import dataclass, field
 from typing import Dict, List, Any, Optional
 import time
+import logging
 
 from src.graph.adapter import GraphAdapter, get_graph_adapter
 from src.agent.tools.summary import EvidenceSummarizer
+
+logger = logging.getLogger(__name__)
+
 
 
 @dataclass
@@ -381,6 +385,17 @@ class InvestigationTools:
                 raise ValueError("case_id is required to persist case.")
             res = self.adapter.write_case(case_dict)
             lat = round((time.time() - t0) * 1000, 2)
+            results = res.get("results", [])
+            status = results[0].get("status", "SUCCESS") if results else "SUCCESS"
+            if status != "SUCCESS":
+                err_msg = results[0].get("error", f"write_case returned status {status}")
+                return ToolExecutionResult(
+                    success=False,
+                    tool_name="write_case",
+                    source=res.get("source", "graph"),
+                    latency_ms=lat,
+                    error=err_msg
+                )
 
             return ToolExecutionResult(
                 success=True,
@@ -395,10 +410,13 @@ class InvestigationTools:
             )
         except Exception as e:
             lat = round((time.time() - t0) * 1000, 2)
+            err_str = str(e)
+            logger.error(f"write_case failed: {err_str}")
             return ToolExecutionResult(
                 success=False,
                 tool_name="write_case",
                 source=getattr(self.adapter, "backend", "unknown"),
                 latency_ms=lat,
-                error=str(e)
+                error=err_str
             )
+
