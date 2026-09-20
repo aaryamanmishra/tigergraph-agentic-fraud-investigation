@@ -148,6 +148,7 @@ class InvestigationState:
     # 7. Policy evaluation
     policy_rules_triggered: List[str] = field(default_factory=list)
     recommended_actions: List[str] = field(default_factory=list)
+    llm_proposed_actions: List[str] = field(default_factory=list)
     approval_routes: List[str] = field(default_factory=list)
     sar_required: bool = False
 

@@ -5,6 +5,7 @@ Deterministic behavior ensures end-to-end verifiability without requiring an LLM
 """
 
 import time
+import json
 from typing import Dict, Any, Optional
 
 from src.agent.state import (
@@ -16,6 +17,9 @@ from src.agent.state import (
 from src.agent.tools.contracts import InvestigationTools
 from src.policy.engine import PolicyEngine, InvestigationState as PolicyState
 from src.policy.actions import Action, ApprovalRoute
+from src.agent.llm.base import BaseLLMProvider
+from src.agent.llm.schemas import LLMReasoningStep, LLMFinalSynthesis
+from src.agent.grounding import get_grounding_validator
 
 
 class InvestigationNodes:
@@ -202,7 +206,7 @@ class InvestigationNodes:
         return state
 
     @staticmethod
-    def assess_evidence(state: InvestigationState, tools: InvestigationTools) -> InvestigationState:
+    def assess_evidence(state: InvestigationState, tools: InvestigationTools, llm: Optional[BaseLLMProvider] = None) -> InvestigationState:
         """
         Stage 5: Synthesizes facts and derived metrics to produce the initial fraud assessment.
         Adheres to strict separation of INFERENCES from FACTS.
@@ -296,6 +300,59 @@ class InvestigationNodes:
             "exposure_usd": state.exposure_usd
         }
 
+        # Stage 5b: LLM Reasoning Step (if provider configured)
+        if llm is not None:
+            validator = get_grounding_validator()
+            prompt_context = (
+                f"Case ID: {state.case_id}\n"
+                f"Trigger: {state.trigger_type} - {state.trigger_text}\n"
+                f"Flagged Transaction: {state.flagged_txn_id} (Card: {state.card_id}, Customer: {state.customer_id}, Region: {state.billing_regions})\n"
+                f"Card History Summary: {json.dumps(state.card_history_summary or {}, default=str)}\n"
+                f"Device Evidence: {json.dumps(state.device_evidence or {}, default=str)}\n"
+                f"Prior Cases: {json.dumps([c.get('case_id') for c in state.prior_case_evidence], default=str)}\n"
+            )
+            messages = [
+                {"role": "system", "content": "You are a lead fraud investigator analyzing financial graph evidence. Reason carefully about observations, hypotheses, and required next steps."},
+                {"role": "user", "content": f"Analyze this investigation context:\n{prompt_context}"}
+            ]
+            try:
+                llm_step = llm.generate_structured(messages, LLMReasoningStep)
+                state.token_usage["prompt_tokens"] += len(prompt_context.split())
+                state.token_usage["completion_tokens"] += len(llm_step.thought.split())
+                state.token_usage["total_tokens"] = state.token_usage["prompt_tokens"] + state.token_usage["completion_tokens"]
+
+                # Ground and register LLM findings as inferences
+                for f in llm_step.findings:
+                    clean_items = validator.sanitize_evidence_items([{
+                        "claim": f.claim,
+                        "source": f.source,
+                        "ref": f.ref,
+                        "entity_ids": f.entity_ids
+                    }])
+                    if clean_items:
+                        ci = clean_items[0]
+                        state.add_inference(
+                            source=f"llm:{f.ref}",
+                            description=ci["claim"],
+                            data={"entity_ids": ci["entity_ids"]},
+                            confidence=f.confidence
+                        )
+
+                if llm_step.tentative_verdict:
+                    state.uncertainty = llm_step.uncertainty
+                if llm_step.evidence_request and not state.evidence_requests:
+                    state.evidence_requests.append(llm_step.evidence_request.model_dump())
+
+                state.append_timeline_event(
+                    stage="assess_evidence_llm",
+                    tool_used=f"llm:{getattr(llm, 'model_name', 'reasoner')}",
+                    evidence_discovered=llm_step.thought[:140] + "...",
+                    result="LLM_REASONING_PRODUCED",
+                    state_change=f"uncertainty -> {state.uncertainty}"
+                )
+            except Exception as e:
+                state.errors.append(f"LLM reasoning step failed: {str(e)}")
+
         state.append_timeline_event(
             stage="assess_evidence",
             tool_used="internal:evidence_synthesizer",
@@ -332,25 +389,34 @@ class InvestigationNodes:
         return state
 
     @staticmethod
-    def request_evidence(state: InvestigationState, tools: InvestigationTools) -> InvestigationState:
+    def request_evidence(state: InvestigationState, tools: InvestigationTools, llm: Optional[BaseLLMProvider] = None) -> InvestigationState:
         """Stage 7: Simulates or issues follow-up inquiry if uncertainty warrants customer outreach."""
         if state.case_status == CaseStatus.EVIDENCE_LOOP:
-            req = {
-                "request_id": f"REQ-{int(time.time())}",
-                "target": "customer",
-                "query": f"Did you authorize transaction {state.flagged_txn_id} in billing region {state.billing_regions[0] if state.billing_regions else 'unknown'}?"
-            }
-            state.evidence_requests.append(req)
-
             # Deterministic resolution: if benign pattern simulated response confirms, else denies
             if state.fraud_pattern == "routine_travel_anomaly":
-                resp = {"response": "YES_AUTHORIZED", "note": "Cardholder confirmed transaction."}
+                resp = {"response": "YES_AUTHORIZED", "note": "Cardholder confirmed transaction as routine weekend spend."}
                 state.stop_reason = StopReason.CUSTOMER_CONFIRMED
                 state.customer_response = "confirmed"
             else:
                 resp = {"response": "NO_UNAUTHORIZED", "note": "Cardholder confirmed fraudulent transaction."}
                 state.stop_reason = StopReason.CUSTOMER_DENIED
                 state.customer_response = "denied"
+
+            req = {
+                "request_id": f"REQ-{int(time.time())}",
+                "target": "customer",
+                "type": "customer_validation",
+                "asked_after_step": 2,
+                "assumed_response": resp["note"],
+                "query": f"Did you authorize transaction {state.flagged_txn_id} in billing region {state.billing_regions[0] if state.billing_regions else 'unknown'}?"
+            }
+            if not state.evidence_requests:
+                state.evidence_requests.append(req)
+            else:
+                # Harmonize existing request
+                state.evidence_requests[0]["assumed_response"] = resp["note"]
+                state.evidence_requests[0]["asked_after_step"] = 2
+                state.evidence_requests[0]["type"] = "customer_validation"
 
             state.evidence_responses.append(resp)
             state.append_timeline_event(
@@ -364,7 +430,7 @@ class InvestigationNodes:
         return state
 
     @staticmethod
-    def reassess(state: InvestigationState, tools: InvestigationTools) -> InvestigationState:
+    def reassess(state: InvestigationState, tools: InvestigationTools, llm: Optional[BaseLLMProvider] = None) -> InvestigationState:
         """Stage 8: Incorporates evidence loop responses into final assessment."""
         if state.case_status == CaseStatus.EVIDENCE_LOOP:
             state.case_status = CaseStatus.REASSESSING
@@ -381,6 +447,34 @@ class InvestigationNodes:
                 state.affected_txn_ids = [state.flagged_txn_id]
 
             state.uncertainty = "low"
+
+            if llm is not None:
+                reassess_context = (
+                    f"Case ID: {state.case_id}\n"
+                    f"Customer verification response: {state.customer_response}\n"
+                    f"Prior assessment: {state.initial_assessment}\n"
+                )
+                messages = [
+                    {"role": "system", "content": "You are a fraud investigator updating case assessment following customer verification."},
+                    {"role": "user", "content": reassess_context}
+                ]
+                try:
+                    synthesis = llm.generate_structured(messages, LLMFinalSynthesis)
+                    state.token_usage["prompt_tokens"] += len(reassess_context.split())
+                    state.token_usage["completion_tokens"] += len(synthesis.summary.split())
+                    state.token_usage["total_tokens"] = state.token_usage["prompt_tokens"] + state.token_usage["completion_tokens"]
+                    if synthesis.pattern_description:
+                        state.pattern_description = synthesis.pattern_description
+                    state.append_timeline_event(
+                        stage="reassess_llm",
+                        tool_used=f"llm:{getattr(llm, 'model_name', 'reasoner')}",
+                        evidence_discovered=synthesis.summary[:140] + "...",
+                        result="LLM_FINAL_SYNTHESIS_PRODUCED",
+                        state_change=f"verdict -> {state.verdict}"
+                    )
+                except Exception as e:
+                    state.errors.append(f"LLM reassessment failed: {str(e)}")
+
             state.append_timeline_event(
                 stage="reassess",
                 tool_used="internal:evidence_synthesizer",
@@ -439,6 +533,16 @@ class InvestigationNodes:
             for r in engine_eval.approval_routes
         ]
         state.sar_required = engine_eval.sar_required
+
+        # Policy override detection and timeline audit event
+        if state.llm_proposed_actions and set(state.llm_proposed_actions) != set(state.recommended_actions):
+            state.append_timeline_event(
+                stage="policy_override",
+                tool_used="policy:PolicyEngine.evaluate",
+                evidence_discovered=f"Deterministic PolicyEngine overrode LLM suggestions: LLM proposed {state.llm_proposed_actions}; Policy engine enforced {state.recommended_actions}",
+                result="POLICY_OVERRODE_LLM",
+                state_change=f"actions enforced -> {state.recommended_actions}"
+            )
 
         state.append_timeline_event(
             stage="apply_policy",
