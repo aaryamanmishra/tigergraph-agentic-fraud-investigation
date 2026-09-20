@@ -12,6 +12,7 @@ from src.agent.llm.schemas import (
 )
 from src.agent.llm.mock import MockLLMProvider
 from src.agent.llm.openai_provider import OpenAIProvider
+from src.agent.llm.gemini_provider import GeminiProvider
 from src.agent.llm.factory import get_llm_provider
 
 __all__ = [
@@ -26,5 +27,6 @@ __all__ = [
     "LLMFinalSynthesis",
     "MockLLMProvider",
     "OpenAIProvider",
+    "GeminiProvider",
     "get_llm_provider",
 ]
