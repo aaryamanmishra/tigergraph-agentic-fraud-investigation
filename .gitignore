@@ -1,0 +1,40 @@
+.env
+.env.*
+*.env
+__pycache__/
+*.pyc
+*.pyo
+.DS_Store
+.pytest_cache/
+.coverage
+htmlcov/
+scratch/
+.system_generated/
+# Secrets
+.env
+.env.*
+*.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# macOS / testing
+.DS_Store
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local/generated files
+scratch/
+.system_generated/
+
+# Private dataset
+transactions.csv
+identity.csv
+closed_cases_history.csv
+case_pack.csv
+drive-download-*.zip

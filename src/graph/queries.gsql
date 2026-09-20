@@ -1,0 +1,197 @@
+// ============================================================================
+// TigerGraph GSQL Investigation Queries for FraudNet
+// TigerGraph x Hacker House Goa 2026 - Agentic Fraud Investigation
+// ============================================================================
+
+USE GRAPH FraudNet
+
+// ----------------------------------------------------------------------------
+// A. Transaction Context
+// ----------------------------------------------------------------------------
+CREATE OR REPLACE QUERY get_transaction_context(VERTEX<Transaction> target_txn) FOR GRAPH FraudNet {
+    Start = {target_txn};
+    Cards = SELECT c FROM Start -(MADE_BY)- Card:c;
+    Customers = SELECT cust FROM Cards -(OWNED_BY)- Customer:cust;
+    Devices = SELECT d FROM Start -(FROM_DEVICE)- DeviceProfile:d;
+    Regions = SELECT r FROM Start -(BILLED_IN)- BillingRegion:r;
+    Emails = SELECT e FROM Start -(PURCHASER_EMAIL)- EmailDomain:e;
+
+    PRINT Start[Start.ts, Start.amount, Start.channel, Start.product_cd, Start.risk_score],
+          Cards[Cards.card4, Cards.card6],
+          Customers,
+          Devices[Devices.device_type, Devices.proxy_status],
+          Regions[Regions.country_code],
+          Emails;
+}
+
+// ----------------------------------------------------------------------------
+// B. Card History
+// ----------------------------------------------------------------------------
+CREATE OR REPLACE QUERY get_card_history(VERTEX<Card> target_card, DATETIME start_time, DATETIME end_time) FOR GRAPH FraudNet {
+    Start = {target_card};
+    Txns = SELECT t FROM Start -(MADE)- Transaction:t
+           WHERE (year(start_time) == 1970 OR t.ts >= start_time)
+             AND (year(end_time) == 1970 OR t.ts <= end_time)
+           ORDER BY t.ts ASC;
+
+    PRINT Txns[Txns.ts, Txns.amount, Txns.channel, Txns.product_cd, Txns.risk_score];
+}
+
+// ----------------------------------------------------------------------------
+// C. Customer History
+// ----------------------------------------------------------------------------
+CREATE OR REPLACE QUERY get_customer_history(VERTEX<Customer> target_customer) FOR GRAPH FraudNet {
+    Start = {target_customer};
+    Cards = SELECT c FROM Start -(OWNS)- Card:c;
+    Txns = SELECT t FROM Cards -(MADE)- Transaction:t
+           ORDER BY t.ts ASC;
+
+    PRINT Cards[Cards.card4, Cards.card6],
+          Txns.size() AS total_transactions,
+          Txns[Txns.ts, Txns.amount, Txns.channel, Txns.risk_score];
+}
+
+// ----------------------------------------------------------------------------
+// D. Connected Cards
+// ----------------------------------------------------------------------------
+CREATE OR REPLACE QUERY get_connected_cards(VERTEX<Card> target_card) FOR GRAPH FraudNet {
+    SetAccum<VERTEX<Card>> @@connected_cards;
+    SetAccum<VERTEX<DeviceProfile>> @@shared_devices;
+
+    Start = {target_card};
+    Txns = SELECT t FROM Start -(MADE)- Transaction:t;
+    Devices = SELECT d FROM Txns -(FROM_DEVICE)- DeviceProfile:d
+              ACCUM @@shared_devices += d;
+    OtherTxns = SELECT ot FROM Devices -(DEVICE_FOR_TXN)- Transaction:ot;
+    OtherCards = SELECT oc FROM OtherTxns -(MADE_BY)- Card:oc
+                 WHERE oc != target_card
+                 ACCUM @@connected_cards += oc;
+
+    PRINT @@connected_cards, @@shared_devices;
+}
+
+// ----------------------------------------------------------------------------
+// E. Device Neighbors
+// ----------------------------------------------------------------------------
+CREATE OR REPLACE QUERY get_device_neighbors(VERTEX<DeviceProfile> target_device) FOR GRAPH FraudNet {
+    SetAccum<VERTEX<Card>> @@cards;
+    SetAccum<VERTEX<Customer>> @@customers;
+
+    Start = {target_device};
+    Txns = SELECT t FROM Start -(DEVICE_FOR_TXN)- Transaction:t
+           ORDER BY t.ts DESC
+           LIMIT 50;
+
+    Cards = SELECT c FROM Txns -(MADE_BY)- Card:c
+            ACCUM @@cards += c;
+    Customers = SELECT cust FROM Cards -(OWNED_BY)- Customer:cust
+                ACCUM @@customers += cust;
+
+    PRINT @@cards, @@customers, Txns.size() AS total_txns;
+}
+
+// ----------------------------------------------------------------------------
+// F. Transaction Chain
+// ----------------------------------------------------------------------------
+CREATE OR REPLACE QUERY get_transaction_chain(VERTEX<Transaction> target_txn, INT window_hours) FOR GRAPH FraudNet {
+    DATETIME center_time;
+    center_time = target_txn.ts;
+    Start = {target_txn};
+    CardNode = SELECT c FROM Start -(MADE_BY)- Card:c;
+
+    ChainTxns = SELECT t FROM CardNode -(MADE)- Transaction:t
+                WHERE t.ts >= datetime_add(center_time, INTERVAL -window_hours HOUR)
+                  AND t.ts <= datetime_add(center_time, INTERVAL window_hours HOUR)
+                ORDER BY t.ts ASC;
+
+    PRINT ChainTxns[ChainTxns.ts, ChainTxns.amount, ChainTxns.channel, ChainTxns.risk_score];
+}
+
+// ----------------------------------------------------------------------------
+// G. Similar Closed Cases
+// ----------------------------------------------------------------------------
+CREATE OR REPLACE QUERY get_similar_closed_cases(STRING target_card_id, STRING target_device_profile) FOR GRAPH FraudNet {
+    SetAccum<VERTEX<ClosedCase>> @@cases;
+
+    IF target_card_id != "" THEN
+        VERTEX c = to_vertex(target_card_id, "Card");
+        StartCard = {c};
+        CardCases = SELECT cs FROM StartCard -(CARD_HAD_CASE)- ClosedCase:cs
+                    ACCUM @@cases += cs;
+    END;
+
+    IF target_device_profile != "" THEN
+        VERTEX d = to_vertex(target_device_profile, "DeviceProfile");
+        StartDev = {d};
+        DevTxns = SELECT t FROM StartDev -(DEVICE_FOR_TXN)- Transaction:t;
+        DevCases = SELECT cs FROM DevTxns -(INVOLVED_IN_CASE)- ClosedCase:cs
+                   ACCUM @@cases += cs;
+    END;
+
+    Cases = @@cases;
+    PRINT Cases[Cases.opened_at, Cases.outcome, Cases.pattern, Cases.exposure_usd, Cases.actions_taken, Cases.analyst_notes];
+}
+
+// ----------------------------------------------------------------------------
+// H. Card-Testing Investigation
+// ----------------------------------------------------------------------------
+CREATE OR REPLACE QUERY detect_card_testing(VERTEX<Card> target_card, DATETIME window_start) FOR GRAPH FraudNet {
+    ListAccum<VERTEX<Transaction>> @@small_authorizations;
+    ListAccum<VERTEX<Transaction>> @@larger_purchases;
+
+    Start = {target_card};
+    Txns = SELECT t FROM Start -(MADE)- Transaction:t
+           WHERE t.ts >= window_start AND t.ts <= datetime_add(window_start, INTERVAL 1 HOUR)
+           ACCUM
+               IF t.channel == "online" AND t.amount < 5.00 THEN
+                   @@small_authorizations += t
+               END,
+               IF t.amount >= 50.00 THEN
+                   @@larger_purchases += t
+               END;
+
+    BOOL is_testing = (@@small_authorizations.size() >= 3 AND @@larger_purchases.size() >= 1);
+    PRINT is_testing, @@small_authorizations.size() AS small_count, @@larger_purchases.size() AS large_count;
+}
+
+// ----------------------------------------------------------------------------
+// I. Case Writeback
+// ----------------------------------------------------------------------------
+CREATE OR REPLACE QUERY write_case(
+    STRING case_id,
+    DATETIME opened_at,
+    DATETIME closed_at,
+    STRING outcome,
+    STRING pattern,
+    STRING first_fraud_txn_id,
+    INT n_txns,
+    DOUBLE exposure_usd,
+    STRING actions_taken,
+    STRING report_filed,
+    STRING analyst_notes,
+    STRING primary_card_id,
+    LIST<STRING> affected_txns,
+    LIST<STRING> connected_cards
+) FOR GRAPH FraudNet {
+    INSERT INTO ClosedCase (
+        PRIMARY_ID, opened_at, closed_at, outcome, pattern,
+        first_fraud_txn_id, n_txns, exposure_usd, actions_taken,
+        report_filed, analyst_notes
+    ) VALUES (
+        case_id, opened_at, closed_at, outcome, pattern,
+        first_fraud_txn_id, n_txns, exposure_usd, actions_taken,
+        report_filed, analyst_notes
+    );
+
+    INSERT INTO ON_CARD (FROM, TO) VALUES (case_id, primary_card_id);
+
+    FOREACH tx IN affected_txns DO
+        INSERT INTO INVOLVES (FROM, TO) VALUES (case_id, tx);
+    END;
+
+    FOREACH cc IN connected_cards DO
+        INSERT INTO CONNECTED_TO (FROM, TO) VALUES (case_id, cc);
+    END;
+
+    PRINT "SUCCESS" AS status, case_id AS persisted_id;
+}
