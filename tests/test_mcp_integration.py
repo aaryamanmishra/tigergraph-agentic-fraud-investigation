@@ -21,13 +21,16 @@ import urllib.request
 
 def _is_live_cluster_online() -> bool:
     """Checks if the remote TigerGraph Cloud instance is actively running and responsive."""
-    try:
-        url = f"{config.get_rest_base_url()}/echo"
-        req = urllib.request.Request(url, headers={"User-Agent": "TestChecker/1.0"})
-        with urllib.request.urlopen(req, timeout=3.0) as resp:
-            return resp.status == 200
-    except Exception:
-        return False
+    base = config.get_rest_base_url()
+    for endpoint in [f"{base}/restpp/echo", f"{base}/echo"]:
+        try:
+            req = urllib.request.Request(endpoint, headers={"User-Agent": "TestChecker/1.0"})
+            with urllib.request.urlopen(req, timeout=3.0) as resp:
+                if resp.status == 200:
+                    return True
+        except Exception:
+            continue
+    return False
 
 
 @pytest.fixture

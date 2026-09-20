@@ -5,6 +5,7 @@ Enforces credential scrubbing, robust JSON repair, token accounting, and strict 
 """
 
 import os
+import re
 import json
 import time
 import logging
@@ -61,16 +62,32 @@ class GeminiProvider(BaseLLMProvider):
                 headers={"Content-Type": "application/json"},
                 method="POST"
             )
-            for attempt in range(3):
+            for attempt in range(4):
                 try:
                     with urllib.request.urlopen(req, timeout=self.timeout_seconds) as resp:
                         body = resp.read().decode("utf-8")
                         return json.loads(body)
                 except urllib.error.HTTPError as e:
                     err_body = e.read().decode("utf-8") if e.fp else ""
-                    last_error = redact_credentials(f"Gemini HTTP {e.code}: {e.reason} - {err_body}")
-                    if e.code == 503 and attempt < 2:
-                        time.sleep(2.0 * (attempt + 1))
+                    if "generaterequestsperday" in err_body.lower():
+                        logger.error("Gemini daily project quota exhausted (GenerateRequestsPerDay-FreeTier). Stopping retries.")
+                        break
+                    if e.code == 429 and attempt < 3:
+                        delay = 12.0 * (attempt + 1)
+                        if "Please retry in" in err_body:
+                            try:
+                                m = re.search(r"Please retry in (\d+(\.\d+)?)s", err_body)
+                                if m:
+                                    delay = float(m.group(1)) + 2.0
+                            except Exception:
+                                pass
+                        logger.warning(f"Gemini 429 Rate Limit. Sleeping {delay:.1f}s before retry (attempt {attempt+1}/4)...")
+                        time.sleep(delay)
+                        continue
+                    elif e.code == 503 and attempt < 3:
+                        delay = 4.0 * (attempt + 1)
+                        logger.warning(f"Gemini 503 Service Unavailable. Sleeping {delay:.1f}s before retry...")
+                        time.sleep(delay)
                         continue
                     break
                 except Exception as e:
