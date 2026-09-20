@@ -79,7 +79,7 @@ class MockLLMProvider(BaseLLMProvider):
     def _generate_reasoning_step(self, prompt: str) -> LLMReasoningStep:
         """Simulates an intermediate reasoning step based on prompt context."""
         if "HHG-001" in prompt or "3514030" in prompt:
-            if "customer confirmed" in prompt.lower() or "confirmed" in prompt.lower():
+            if "customer verification response: confirmed" in prompt.lower() or "yes_authorized" in prompt.lower() or "customer response: confirmed" in prompt.lower():
                 return LLMReasoningStep(
                     thought="The customer has explicitly confirmed authorization of the flagged $77.07 transaction. Cardholder states this is a routine recurring purchase. Rule R3 mandates immediate closure without fraud.",
                     observations=[

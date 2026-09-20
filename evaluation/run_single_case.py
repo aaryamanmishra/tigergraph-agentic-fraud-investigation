@@ -116,6 +116,12 @@ def run_case(
     print(f"Statutory Actions:      {state.recommended_actions}")
     print(f"Approval Routes:        {state.approval_routes}")
     print(f"SAR Required:           {state.sar_required}")
+    if state.rag_context:
+        print(f"\nGraphRAG Retrieval Context:")
+        print(f"  - Retrieved Policies: {state.rag_context.get('retrieved_policies', [])}")
+        print(f"  - Retrieved Typologies: {state.rag_context.get('retrieved_typologies', [])}")
+        print(f"  - Case Memory Precedents: {state.rag_context.get('case_memory_count', 0)}")
+        print(f"  - Subgraph Evidence Items: {state.rag_context.get('graph_evidence_count', 0)}")
     print(f"Token Usage:            {state.token_usage}")
 
     # 5. Serialize to benchmark answer

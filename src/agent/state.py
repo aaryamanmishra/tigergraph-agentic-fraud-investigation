@@ -125,6 +125,7 @@ class InvestigationState:
     transaction_chain_evidence: Optional[Dict[str, Any]] = None
     prior_case_evidence: List[Dict[str, Any]] = field(default_factory=list)
     pattern_evidence: Dict[str, Any] = field(default_factory=dict)
+    rag_context: Optional[Dict[str, Any]] = None
 
     # 5. Assessment
     fraud_probability: float = 0.0  # 0.0 to 1.0
@@ -248,7 +249,8 @@ class InvestigationState:
                 "device_evidence": self.device_evidence,
                 "transaction_chain_evidence": self.transaction_chain_evidence,
                 "prior_case_evidence": self.prior_case_evidence,
-                "pattern_evidence": self.pattern_evidence
+                "pattern_evidence": self.pattern_evidence,
+                "rag_context": self.rag_context
             },
             "assessment": {
                 "fraud_probability": self.fraud_probability,

@@ -20,6 +20,7 @@ from src.policy.actions import Action, ApprovalRoute
 from src.agent.llm.base import BaseLLMProvider
 from src.agent.llm.schemas import LLMReasoningStep, LLMFinalSynthesis
 from src.agent.grounding import get_grounding_validator
+from src.rag.context_builder import GraphRAGContextBuilder
 
 
 class InvestigationNodes:
@@ -300,19 +301,22 @@ class InvestigationNodes:
             "exposure_usd": state.exposure_usd
         }
 
-        # Stage 5b: LLM Reasoning Step (if provider configured)
+        # Stage 5b: GraphRAG Context Construction (unifying graph, case memory, policies, typologies)
+        rag_builder = GraphRAGContextBuilder()
+        rag_data = rag_builder.build_context(state)
+        state.rag_context = {
+            "retrieved_policies": [p["provenance_id"] for p in rag_data.get("retrieved_policies", [])],
+            "retrieved_typologies": [t["provenance_id"] for t in rag_data.get("retrieved_typologies", [])],
+            "case_memory_count": len(rag_data.get("case_memory", [])),
+            "graph_evidence_count": len(rag_data.get("graph_evidence", []))
+        }
+
+        # Stage 5c: LLM Reasoning Step (if provider configured)
         if llm is not None:
             validator = get_grounding_validator()
-            prompt_context = (
-                f"Case ID: {state.case_id}\n"
-                f"Trigger: {state.trigger_type} - {state.trigger_text}\n"
-                f"Flagged Transaction: {state.flagged_txn_id} (Card: {state.card_id}, Customer: {state.customer_id}, Region: {state.billing_regions})\n"
-                f"Card History Summary: {json.dumps(state.card_history_summary or {}, default=str)}\n"
-                f"Device Evidence: {json.dumps(state.device_evidence or {}, default=str)}\n"
-                f"Prior Cases: {json.dumps([c.get('case_id') for c in state.prior_case_evidence], default=str)}\n"
-            )
+            prompt_context = rag_data["rendered_prompt_context"]
             messages = [
-                {"role": "system", "content": "You are a lead fraud investigator analyzing financial graph evidence. Reason carefully about observations, hypotheses, and required next steps."},
+                {"role": "system", "content": "You are a lead fraud investigator analyzing financial graph evidence grounded by GraphRAG. Reason carefully about observations, hypotheses, and required next steps, citing provenance IDs ([POLICY-xx], [GRAPH-xx], [CASE-xx]) where applicable."},
                 {"role": "user", "content": f"Analyze this investigation context:\n{prompt_context}"}
             ]
             try:
@@ -449,13 +453,19 @@ class InvestigationNodes:
             state.uncertainty = "low"
 
             if llm is not None:
+                relevant_rule = (
+                    "Rule R3 (POLICY-R3): Customer Confirms Charge -> Conclude legitimate, CLOSE_NO_FRAUD, zero exposure."
+                    if state.customer_response == "confirmed"
+                    else "Rule R2 (POLICY-R2): Customer Denies Charge -> Confirm fraud, BLOCK_CARD, CREATE_CASE. SAR (FILE_REPORT) if exposure > $1000 or shared link."
+                )
                 reassess_context = (
                     f"Case ID: {state.case_id}\n"
                     f"Customer verification response: {state.customer_response}\n"
-                    f"Prior assessment: {state.initial_assessment}\n"
+                    f"Governing Policy Precedent: [{relevant_rule}]\n"
+                    f"Prior initial assessment: {json.dumps(state.initial_assessment or {}, default=str)}\n"
                 )
                 messages = [
-                    {"role": "system", "content": "You are a fraud investigator updating case assessment following customer verification."},
+                    {"role": "system", "content": "You are a fraud investigator updating case assessment following customer verification grounded by policy rules. Reference governing policy rules and evidence IDs in your summary."},
                     {"role": "user", "content": reassess_context}
                 ]
                 try:

@@ -16,6 +16,18 @@ from src.config import config, _load_dotenv
 _load_dotenv()
 
 from src.graph.mcp_client import TigerGraphMCPClient, redact_secrets
+import urllib.request
+
+
+def _is_live_cluster_online() -> bool:
+    """Checks if the remote TigerGraph Cloud instance is actively running and responsive."""
+    try:
+        url = f"{config.get_rest_base_url()}/echo"
+        req = urllib.request.Request(url, headers={"User-Agent": "TestChecker/1.0"})
+        with urllib.request.urlopen(req, timeout=3.0) as resp:
+            return resp.status == 200
+    except Exception:
+        return False
 
 
 @pytest.fixture
@@ -50,6 +62,9 @@ class TestTigerGraphMCPIntegration:
 
     def test_live_fraudnet_schema_and_connection(self, mcp_client):
         """MCP schema query must verify all 7 vertex types and 9 edge types on FraudNet."""
+        if not _is_live_cluster_online():
+            pytest.skip("TigerGraph Cloud instance is stopped/unreachable (resume workspace on tgcloud.io to run live).")
+
         async def _run():
             schema = await mcp_client.get_graph_schema()
             assert schema["success"] is True
@@ -75,6 +90,9 @@ class TestTigerGraphMCPIntegration:
         - Complete card history (422 transactions)
         - Prior closed cases CC-1066, CC-1673, CC-2964, CC-3587
         """
+        if not _is_live_cluster_online():
+            pytest.skip("TigerGraph Cloud instance is stopped/unreachable (resume workspace on tgcloud.io to run live).")
+
         async def _run():
             # 1. Transaction context
             ctx = await mcp_client.get_transaction_context("3514030")
@@ -115,6 +133,9 @@ class TestTigerGraphMCPIntegration:
         - Connected cards (including C03528-K1)
         - Historical case CC-3035
         """
+        if not _is_live_cluster_online():
+            pytest.skip("TigerGraph Cloud instance is stopped/unreachable (resume workspace on tgcloud.io to run live).")
+
         async def _run():
             # 1. Transaction context
             ctx = await mcp_client.get_transaction_context("3478561")
@@ -152,6 +173,9 @@ class TestTigerGraphMCPIntegration:
         - Verify write idempotence
         - Clean up temporary test case
         """
+        if not _is_live_cluster_online():
+            pytest.skip("TigerGraph Cloud instance is stopped/unreachable (resume workspace on tgcloud.io to run live).")
+
         async def _run():
             test_case_id = f"TEST-MCP-{int(time.time())}"
             now_str = time.strftime("%Y-%m-%d %H:%M:%S")
