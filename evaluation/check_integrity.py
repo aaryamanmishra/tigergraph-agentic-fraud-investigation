@@ -64,6 +64,7 @@ class DatasetEntityRegistry:
                     self.txn_ids.add(r["TransactionID"])
                     prof = f"{r['DeviceInfo']} | {r['id_30']} | {r['id_31']} | {r['id_33']}"
                     self.device_profiles.add(prof)
+        self._trimmed_device_profiles = {p.strip() for p in self.device_profiles}
 
         # 4. transactions.csv
         txns_path = os.path.join(self.data_dir, "transactions.csv")
@@ -91,7 +92,11 @@ class DatasetEntityRegistry:
         return case_id in self.case_pack_ids or case_id in self.closed_case_ids
 
     def is_valid_device_profile(self, profile: str) -> bool:
-        return profile in self.device_profiles
+        if profile in self.device_profiles:
+            return True
+        if hasattr(self, "_trimmed_device_profiles"):
+            return profile.strip() in self._trimmed_device_profiles
+        return False
 
     def get_txn_amount(self, txn_id: str) -> Optional[float]:
         return self.txn_amounts.get(txn_id)

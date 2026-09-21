@@ -1,0 +1,126 @@
+{
+  "case_id": "HHG-018",
+  "case": {
+    "status": "closed_fraud",
+    "verdict": "fraud",
+    "fraud_probability": 0.9,
+    "pattern": "undocumented",
+    "pattern_description": "Customer explicitly disputed purchase of $39.08 stating transaction was not authorized.",
+    "affected_txn_ids": [
+      "3491361"
+    ],
+    "first_suspicious_txn_id": "3491361",
+    "connected_card_ids": [],
+    "connected_device_profiles": [],
+    "exposure_usd": 39.08,
+    "evidence": [
+      {
+        "claim": "Transaction 3491361 amount is $39.08, channel is 'in_person', product is 'W', risk score is 0.48.",
+        "source": "graph",
+        "ref": "get_transaction_context",
+        "entity_ids": [
+          "3491361",
+          "C02354-K2"
+        ]
+      },
+      {
+        "claim": "Transaction 3491361 is associated with card C02354-K2, customer C02354, billing region 126.0.",
+        "source": "graph",
+        "ref": "get_transaction_context",
+        "entity_ids": [
+          "C02354",
+          "C02354-K2"
+        ]
+      },
+      {
+        "claim": "Retrieved 10 historical closed cases referencing card C02354-K2.",
+        "source": "graph",
+        "ref": "get_similar_closed_cases",
+        "entity_ids": [
+          "CC-0631",
+          "CC-2051",
+          "CC-4070",
+          "CC-2432",
+          "CC-3537",
+          "CC-1450",
+          "CC-4942",
+          "CC-2187",
+          "CC-3634",
+          "CC-0454"
+        ]
+      },
+      {
+        "claim": "Card C02354-K2 history contains 7091 total transactions. Baseline amount mean=$141.15, stdev=$215.28.",
+        "source": "graph",
+        "ref": "get_card_history_summary",
+        "entity_ids": [
+          "3491361",
+          "C02354-K2"
+        ]
+      },
+      {
+        "claim": "Flagged billing region 126.0 familiarity is 'novel_zero_history' (0 prior transactions in this region).",
+        "source": "graph",
+        "ref": "get_card_history_summary",
+        "entity_ids": [
+          "3491361",
+          "C02354-K2"
+        ]
+      },
+      {
+        "claim": "Customer report of unauthorized charge verified against card profile.",
+        "source": "graph",
+        "ref": "pattern_reasoner",
+        "entity_ids": [
+          "3491361",
+          "C02354-K2"
+        ]
+      }
+    ],
+    "similar_prior_cases": [
+      "CC-0631",
+      "CC-2051",
+      "CC-4070",
+      "CC-2432",
+      "CC-3537",
+      "CC-1450",
+      "CC-4942",
+      "CC-2187",
+      "CC-3634",
+      "CC-0454"
+    ],
+    "summary": "Customer explicitly disputed purchase of $39.08 stating transaction was not authorized.",
+    "written_to_graph": false,
+    "graph_case_id": ""
+  },
+  "evidence_requests": [],
+  "next_best_actions": {
+    "initial": [
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "Recommended action CREATE_CASE enforced by deterministic policy engine."
+      }
+    ],
+    "final": [
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "Recommended action CREATE_CASE enforced by deterministic policy engine."
+      }
+    ],
+    "what_changed": "Investigation conclusive upon initial evidence evaluation; actions remained stable."
+  },
+  "sar": {
+    "file": false,
+    "reason": "",
+    "narrative": "",
+    "subjects": [],
+    "total_amount_usd": 0.0,
+    "activity_dates": []
+  },
+  "stop_reason": "sufficient_evidence",
+  "tool_calls": 5,
+  "tokens": 0,
+  "latency_s": 10.238
+}

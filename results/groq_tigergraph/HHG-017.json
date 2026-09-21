@@ -1,0 +1,209 @@
+{
+  "case_id": "HHG-017",
+  "case": {
+    "status": "closed_fraud",
+    "verdict": "fraud",
+    "fraud_probability": 0.95,
+    "pattern": "undocumented",
+    "pattern_description": "Flagged device profile is shared across a coordinated syndicate cluster of 35 cards.",
+    "affected_txn_ids": [
+      "3450629"
+    ],
+    "first_suspicious_txn_id": "3450629",
+    "connected_card_ids": [],
+    "connected_device_profiles": [
+      "Windows | Windows 10 | chrome 65.0 | 1920x1080"
+    ],
+    "exposure_usd": 100.09,
+    "evidence": [
+      {
+        "claim": "Transaction 3450629 amount is $100.09, channel is 'online', product is 'R', risk score is 0.57.",
+        "source": "graph",
+        "ref": "get_transaction_context",
+        "entity_ids": [
+          "3450629",
+          "C04570-K1"
+        ]
+      },
+      {
+        "claim": "Transaction 3450629 is associated with card C04570-K1, customer C04570, billing region 204.0.",
+        "source": "graph",
+        "ref": "get_transaction_context",
+        "entity_ids": [
+          "C04570",
+          "C04570-K1"
+        ]
+      },
+      {
+        "claim": "Retrieved 9 historical closed cases referencing card C04570-K1.",
+        "source": "graph",
+        "ref": "get_similar_closed_cases",
+        "entity_ids": [
+          "CC-5292",
+          "CC-5217",
+          "CC-5481",
+          "CC-5455",
+          "CC-5345",
+          "CC-1383",
+          "CC-5181",
+          "CC-5446",
+          "CC-5172"
+        ]
+      },
+      {
+        "claim": "Card C04570-K1 history contains 59 total transactions. Baseline amount mean=$342.87, stdev=$430.43.",
+        "source": "graph",
+        "ref": "get_card_history_summary",
+        "entity_ids": [
+          "3450629",
+          "C04570-K1"
+        ]
+      },
+      {
+        "claim": "Flagged billing region 204.0 familiarity is 'novel_zero_history' (0 prior transactions in this region).",
+        "source": "graph",
+        "ref": "get_card_history_summary",
+        "entity_ids": [
+          "3450629",
+          "C04570-K1"
+        ]
+      },
+      {
+        "claim": "Device profile links 35 unique cards across the network. Syndicate risk tier: CRITICAL.",
+        "source": "graph",
+        "ref": "get_device_neighbors_summary",
+        "entity_ids": [
+          "3450629",
+          "C04570-K1"
+        ]
+      },
+      {
+        "claim": "Device sharing across 35 accounts represents coordinated syndicate attack.",
+        "source": "graph",
+        "ref": "pattern_reasoner",
+        "entity_ids": [
+          "3450629",
+          "C04570-K1"
+        ]
+      },
+      {
+        "claim": "Transaction 3450629 is flagged with a risk score of 0.57, exceeding the 0.30 threshold for automatic case creation.",
+        "source": "graph",
+        "ref": "llm:GRAPH-TXN-3450629",
+        "entity_ids": [
+          "3450629",
+          "C04570-K1"
+        ]
+      },
+      {
+        "claim": "Card C04570-K1 has no prior transactions in the billing region, indicating a novel region for this card.",
+        "source": "graph",
+        "ref": "llm:GRAPH-CARD-C04570-K1",
+        "entity_ids": [
+          "3450629",
+          "C04570-K1"
+        ]
+      },
+      {
+        "claim": "Device profile \"Windows | Windows 10 | chrome 65.0 | 1920x1080\" is shared by 35 cards and flagged as CRITICAL syndicate risk, satisfying Policy R6\u2019s shared origin trigger.",
+        "source": "graph",
+        "ref": "llm:GRAPH-DEV-Windows | Windows 10 | chrome 65.0 | 1920x1080",
+        "entity_ids": [
+          "3450629",
+          "C04570-K1"
+        ]
+      },
+      {
+        "claim": "Policy R6 mandates automatic case creation, file report, and monitoring of connected cards for this transaction.",
+        "source": "document",
+        "ref": "llm:POLICY-R6",
+        "entity_ids": [
+          "3450629",
+          "C04570-K1"
+        ]
+      },
+      {
+        "claim": "SAR filing is required because the transaction is linked to a shared device, meeting the SAR threshold.",
+        "source": "document",
+        "ref": "llm:POLICY-SAR",
+        "entity_ids": [
+          "3450629",
+          "C04570-K1"
+        ]
+      }
+    ],
+    "similar_prior_cases": [
+      "CC-5292",
+      "CC-5217",
+      "CC-5481",
+      "CC-5455",
+      "CC-5345",
+      "CC-1383",
+      "CC-5181",
+      "CC-5446",
+      "CC-5172"
+    ],
+    "summary": "Flagged device profile is shared across a coordinated syndicate cluster of 35 cards.",
+    "written_to_graph": true,
+    "graph_case_id": "HHG-017"
+  },
+  "evidence_requests": [
+    {
+      "type": "customer_validation",
+      "asked_after_step": 1,
+      "assumed_response": "Customer denies the transaction"
+    }
+  ],
+  "next_best_actions": {
+    "initial": [
+      {
+        "action": "VERIFY_WITH_CUSTOMER",
+        "route": "auto",
+        "reason": "Rule R1: Verify with customer prior to blocking on single score signal."
+      }
+    ],
+    "final": [
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "Recommended action CREATE_CASE enforced by deterministic policy engine."
+      },
+      {
+        "action": "FILE_REPORT",
+        "route": "L2",
+        "reason": "Statutory SAR filing mandated by policy exposure/pattern."
+      },
+      {
+        "action": "ESCALATE_TO_ANALYST",
+        "route": "auto",
+        "reason": "Recommended action ESCALATE_TO_ANALYST enforced by deterministic policy engine."
+      },
+      {
+        "action": "MONITOR_CONNECTED_CARDS",
+        "route": "auto",
+        "reason": "Recommended action MONITOR_CONNECTED_CARDS enforced by deterministic policy engine."
+      }
+    ],
+    "what_changed": "Customer verification response received (confirmed). Verdict transitioned to fraud, resulting in final action set: ['CREATE_CASE', 'FILE_REPORT', 'ESCALATE_TO_ANALYST', 'MONITOR_CONNECTED_CARDS']."
+  },
+  "sar": {
+    "file": true,
+    "reason": "Regulatory SAR filing mandated for undocumented",
+    "narrative": "Suspicious activity report filed for fraudulent pattern 'undocumented'. Flagged transaction 3450629 and related activity totaled $100.09 across victim card C04570-K1. Evidence from graph topology demonstrated unauthorized transactions and compromised infrastructure. Automated policy rules mandated regulatory escalation and preventative blocking.",
+    "subjects": [
+      "C04570",
+      "C04570-K1",
+      "3450629",
+      "Windows | Windows 10 | chrome 65.0 | 1920x1080"
+    ],
+    "total_amount_usd": 100.09,
+    "activity_dates": [
+      "2016-11-01",
+      "2016-12-31"
+    ]
+  },
+  "stop_reason": "sufficient_evidence",
+  "tool_calls": 6,
+  "tokens": 583,
+  "latency_s": 20.289
+}

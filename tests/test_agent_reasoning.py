@@ -541,5 +541,77 @@ class TestGroqStructuredResilienceAndCasePersistence:
         assert body_json["affected_txns"] == ["3478561"]
         assert body_json["connected_cards"] == []
 
+    def test_is_valid_device_profile_id(self):
+        from src.graph.adapter import is_valid_device_profile_id
+
+        # Valid composite 4-field DeviceProfile IDs
+        assert is_valid_device_profile_id("SM-G935F Build/NRD90M | Android 7.0 | chrome 62.0 for android | 1920x1080") is True
+        assert is_valid_device_profile_id(" |  | firefox 47.0 | ") is True
+        assert is_valid_device_profile_id("Windows |  | chrome 62.0 | ") is True
+
+        # Invalid: arbitrary standalone device metadata
+        assert is_valid_device_profile_id("firefox 47.0") is False
+        assert is_valid_device_profile_id("chrome 62.0") is False
+        assert is_valid_device_profile_id("desktop") is False
+        assert is_valid_device_profile_id("mobile") is False
+        assert is_valid_device_profile_id("iOS 11.2") is False
+        assert is_valid_device_profile_id("") is False
+        assert is_valid_device_profile_id(None) is False
+        assert is_valid_device_profile_id(" | | | ") is False  # All empty fields
+
+    def test_get_similar_closed_cases_omits_invalid_device_metadata(self):
+        from src.graph.adapter import GraphAdapter
+        from src.agent.tools.contracts import InvestigationTools
+
+        adapter = GraphAdapter(backend="in_memory")
+        tools = InvestigationTools(adapter=adapter)
+
+        # Passing standalone browser metadata "firefox 47.0" must omit device lookup and succeed
+        res = tools.get_similar_closed_cases(card_id="C13487-K1", device_profile="firefox 47.0")
+        assert res.success is True
+        assert res.data["device_profile"] == ""  # Non-vertex device metadata omitted
+        assert res.data["card_id"] == "C13487-K1"
+
+    def test_get_similar_closed_cases_preserves_exact_composite_device_id(self):
+        from src.agent.tools.contracts import InvestigationTools
+        from unittest.mock import MagicMock
+
+        mock_adapter = MagicMock()
+        mock_adapter.get_similar_closed_cases.return_value = {
+            "query": "get_similar_closed_cases",
+            "results": [{"case_id": "CC-001"}],
+            "source": "tigergraph"
+        }
+        tools = InvestigationTools(adapter=mock_adapter)
+
+        # Composite ID with whitespace " |  | firefox 47.0 | " must NOT be stripped to "|  | firefox 47.0 |"
+        res = tools.get_similar_closed_cases(card_id="C08106-K1", device_profile=" |  | firefox 47.0 | ")
+        assert res.success is True
+        assert res.data["device_profile"] == " |  | firefox 47.0 | "
+        mock_adapter.get_similar_closed_cases.assert_called_once_with(
+            card_id="C08106-K1",
+            device_profile=" |  | firefox 47.0 | "
+        )
+
+    def test_retrieve_prior_cases_with_device_metadata_recovers_and_succeeds(self):
+        from src.agent.nodes import InvestigationNodes
+        from src.graph.adapter import GraphAdapter
+        from src.agent.tools.contracts import InvestigationTools
+
+        adapter = GraphAdapter(backend="in_memory")
+        tools = InvestigationTools(adapter=adapter)
+
+        # State has raw device metadata "firefox 47.0" as device_profile_id
+        state = InvestigationState(case_id="HHG-004", flagged_txn_id="3583227", card_id="C13487-K1")
+        state.device_profile_ids = ["firefox 47.0"]
+
+        result_state = InvestigationNodes.retrieve_prior_cases(state, tools)
+        # Must safely omit device-neighbor lookup and succeed via card
+        assert len(result_state.errors) == 0
+        timeline_event = result_state.investigation_timeline[-1]
+        assert timeline_event.result == "SUCCESS"
+        assert timeline_event.stage == "retrieve_prior_cases"
+
+
 
 

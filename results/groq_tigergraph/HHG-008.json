@@ -1,0 +1,211 @@
+{
+  "case_id": "HHG-008",
+  "case": {
+    "status": "closed_fraud",
+    "verdict": "fraud",
+    "fraud_probability": 0.95,
+    "pattern": "undocumented",
+    "pattern_description": "Flagged device profile is shared across a coordinated syndicate cluster of 25 cards.",
+    "affected_txn_ids": [
+      "3558054"
+    ],
+    "first_suspicious_txn_id": "3558054",
+    "connected_card_ids": [],
+    "connected_device_profiles": [
+      " |  | chrome 66.0 | "
+    ],
+    "exposure_usd": 55.68,
+    "evidence": [
+      {
+        "claim": "Transaction 3558054 amount is $55.68, channel is 'online', product is 'C', risk score is 0.38.",
+        "source": "graph",
+        "ref": "get_transaction_context",
+        "entity_ids": [
+          "3558054",
+          "C13171-K2"
+        ]
+      },
+      {
+        "claim": "Transaction 3558054 is associated with card C13171-K2, customer C13171, billing region .",
+        "source": "graph",
+        "ref": "get_transaction_context",
+        "entity_ids": [
+          "C13171",
+          "C13171-K2"
+        ]
+      },
+      {
+        "claim": "Retrieved 10 historical closed cases referencing card C13171-K2.",
+        "source": "graph",
+        "ref": "get_similar_closed_cases",
+        "entity_ids": [
+          "CC-3422",
+          "CC-5010",
+          "CC-1293",
+          "CC-3079",
+          "CC-1925",
+          "CC-1715",
+          "CC-2716",
+          "CC-0056",
+          "CC-3728",
+          "CC-4819"
+        ]
+      },
+      {
+        "claim": "Card C13171-K2 history contains 928 total transactions. Baseline amount mean=$54.27, stdev=$50.08.",
+        "source": "graph",
+        "ref": "get_card_history_summary",
+        "entity_ids": [
+          "3558054",
+          "C13171-K2"
+        ]
+      },
+      {
+        "claim": "Flagged billing region  familiarity is 'novel_zero_history' (0 prior transactions in this region).",
+        "source": "graph",
+        "ref": "get_card_history_summary",
+        "entity_ids": [
+          "3558054",
+          "C13171-K2"
+        ]
+      },
+      {
+        "claim": "Device profile links 25 unique cards across the network. Syndicate risk tier: CRITICAL.",
+        "source": "graph",
+        "ref": "get_device_neighbors_summary",
+        "entity_ids": [
+          "3558054",
+          "C13171-K2"
+        ]
+      },
+      {
+        "claim": "Device sharing across 25 accounts represents coordinated syndicate attack.",
+        "source": "graph",
+        "ref": "pattern_reasoner",
+        "entity_ids": [
+          "3558054",
+          "C13171-K2"
+        ]
+      },
+      {
+        "claim": "The transaction 3558054 is linked to a device profile shared by 25 cards and classified as a critical syndicate risk.",
+        "source": "graph",
+        "ref": "llm:GRAPH-DEV- |  | chrome 66.0 | ",
+        "entity_ids": [
+          "3558054",
+          "C13171-K2"
+        ]
+      },
+      {
+        "claim": "Card C13171-K2 has no prior transactions in the billing region of this transaction, indicating a novel region exposure.",
+        "source": "graph",
+        "ref": "llm:GRAPH-CARD-C13171-K2",
+        "entity_ids": [
+          "3558054",
+          "C13171-K2"
+        ]
+      },
+      {
+        "claim": "Policy Rule R6 (Shared Origin) is triggered by the shared device profile, mandating case creation and monitoring of connected cards.",
+        "source": "document",
+        "ref": "llm:POLICY-R6",
+        "entity_ids": [
+          "3558054",
+          "C13171-K2"
+        ]
+      },
+      {
+        "claim": "Policy Rule R2 (Customer Denies) mandates blocking the card (L1) and creating a case, and requires a SAR due to shared device risk.",
+        "source": "document",
+        "ref": "llm:POLICY-R2",
+        "entity_ids": [
+          "3558054",
+          "C13171-K2"
+        ]
+      },
+      {
+        "claim": "Historical precedent cases (CC-3422, CC-5010, CC-1293, CC-3079, CC-1925) were all confirmed fraud, supporting a coordinated fraud pattern.",
+        "source": "graph",
+        "ref": "llm:CASE-CC-3422,CASE-CC-5010,CASE-CC-1293,CASE-CC-3079,CASE-CC-1925",
+        "entity_ids": [
+          "3558054",
+          "C13171-K2"
+        ]
+      }
+    ],
+    "similar_prior_cases": [
+      "CC-3422",
+      "CC-5010",
+      "CC-1293",
+      "CC-3079",
+      "CC-1925",
+      "CC-1715",
+      "CC-2716",
+      "CC-0056",
+      "CC-3728",
+      "CC-4819"
+    ],
+    "summary": "Flagged device profile is shared across a coordinated syndicate cluster of 25 cards.",
+    "written_to_graph": true,
+    "graph_case_id": "HHG-008"
+  },
+  "evidence_requests": [
+    {
+      "type": "customer_validation",
+      "asked_after_step": 1,
+      "assumed_response": "No, I did not authorize this purchase."
+    }
+  ],
+  "next_best_actions": {
+    "initial": [
+      {
+        "action": "VERIFY_WITH_CUSTOMER",
+        "route": "auto",
+        "reason": "Rule R1: Verify with customer prior to blocking on single score signal."
+      }
+    ],
+    "final": [
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "Recommended action CREATE_CASE enforced by deterministic policy engine."
+      },
+      {
+        "action": "FILE_REPORT",
+        "route": "L2",
+        "reason": "Statutory SAR filing mandated by policy exposure/pattern."
+      },
+      {
+        "action": "ESCALATE_TO_ANALYST",
+        "route": "auto",
+        "reason": "Recommended action ESCALATE_TO_ANALYST enforced by deterministic policy engine."
+      },
+      {
+        "action": "MONITOR_CONNECTED_CARDS",
+        "route": "auto",
+        "reason": "Recommended action MONITOR_CONNECTED_CARDS enforced by deterministic policy engine."
+      }
+    ],
+    "what_changed": "Customer verification response received (confirmed). Verdict transitioned to fraud, resulting in final action set: ['CREATE_CASE', 'FILE_REPORT', 'ESCALATE_TO_ANALYST', 'MONITOR_CONNECTED_CARDS']."
+  },
+  "sar": {
+    "file": true,
+    "reason": "Regulatory SAR filing mandated for undocumented",
+    "narrative": "Suspicious activity report filed for fraudulent pattern 'undocumented'. Flagged transaction 3558054 and related activity totaled $55.68 across victim card C13171-K2. Evidence from graph topology demonstrated unauthorized transactions and compromised infrastructure. Automated policy rules mandated regulatory escalation and preventative blocking.",
+    "subjects": [
+      "C13171",
+      "C13171-K2",
+      "3558054",
+      " |  | chrome 66.0 | "
+    ],
+    "total_amount_usd": 55.68,
+    "activity_dates": [
+      "2016-11-01",
+      "2016-12-31"
+    ]
+  },
+  "stop_reason": "sufficient_evidence",
+  "tool_calls": 6,
+  "tokens": 587,
+  "latency_s": 29.115
+}

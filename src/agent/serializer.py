@@ -134,7 +134,7 @@ def serialize_case_answer(state: InvestigationState) -> Dict[str, Any]:
             f"Automated policy rules mandated regulatory escalation and preventative blocking."
         )
         subjects = [s for s in [state.customer_id, state.card_id, state.flagged_txn_id] if s]
-        if state.device_profile_ids and state.device_profile_ids[0] in validator.registry.device_profiles:
+        if state.device_profile_ids and validator.registry.is_valid_device_profile(state.device_profile_ids[0]):
             subjects.append(state.device_profile_ids[0])
         
         # Determine activity dates [start, end]

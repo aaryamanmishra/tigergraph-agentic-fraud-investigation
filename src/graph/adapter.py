@@ -18,6 +18,27 @@ from src.graph.loading.loader import get_graph_store, GraphStore, ClosedCaseVert
 logger = logging.getLogger(__name__)
 
 
+def is_valid_device_profile_id(device_profile: Any) -> bool:
+    """
+    Validates whether a candidate string is a valid FraudNet DeviceProfile vertex ID
+    (composite format: 'DeviceInfo | OS | Browser | Screen') rather than arbitrary
+    device metadata/attribute such as a standalone browser ('firefox 47.0'),
+    operating system ('Windows 10'), or device type ('desktop').
+    """
+    if not device_profile or not isinstance(device_profile, str):
+        return False
+    # All FraudNet DeviceProfile vertices are 4-field composite keys joined with ' | '
+    if " | " not in device_profile:
+        return False
+    parts = device_profile.split(" | ")
+    if len(parts) != 4:
+        return False
+    # At least one attribute field must be non-empty
+    if not any(p.strip() for p in parts):
+        return False
+    return True
+
+
 class GraphAdapter:
     """
     Unified Graph Adapter providing multi-hop graph investigation operations.
@@ -360,9 +381,22 @@ class GraphAdapter:
         Identifies cards and customers that share a specific device profile.
         Crucial for detecting multi-account attacks and botnet fraud (Rules R6 & R9).
         """
-        inputs = {"device_profile": device_profile}
+        valid_dev = str(device_profile or "")
+        if valid_dev and not is_valid_device_profile_id(valid_dev):
+            logger.info("Non-vertex device metadata passed to get_device_neighbors: %r", valid_dev)
+            return {
+                "query": "get_device_neighbors",
+                "inputs": {"device_profile": valid_dev},
+                "results": [],
+                "evidence_type": "device_neighbors",
+                "source": self.backend,
+                "connected_cards": [],
+                "total_cards": 0
+            }
+
+        inputs = {"device_profile": valid_dev}
         if self.backend == "tigergraph":
-            raw_res = self._tg_rest_query("get_device_neighbors", {"target_device": device_profile})
+            raw_res = self._tg_rest_query("get_device_neighbors", {"target_device": valid_dev})
             results = []
             if raw_res and len(raw_res) > 0:
                 row = raw_res[0]
@@ -515,12 +549,18 @@ class GraphAdapter:
         """
         Retrieves historical closed cases matching the card or device profile.
         Provides grounding case memory for the agent.
+        Omits device lookup if device_profile is not a valid DeviceProfile vertex ID.
         """
-        inputs = {"card_id": card_id, "device_profile": device_profile}
+        valid_dev = str(device_profile or "")
+        if valid_dev and not is_valid_device_profile_id(valid_dev):
+            logger.info("Omitting device lookup in get_similar_closed_cases for non-vertex metadata: %r", valid_dev)
+            valid_dev = ""
+
+        inputs = {"card_id": card_id, "device_profile": valid_dev}
         if self.backend == "tigergraph":
             raw_res = self._tg_rest_query(
                 "get_similar_closed_cases",
-                {"target_card_id": card_id, "target_device_profile": device_profile}
+                {"target_card_id": card_id, "target_device_profile": valid_dev}
             )
             results = []
             if raw_res and len(raw_res) > 0:

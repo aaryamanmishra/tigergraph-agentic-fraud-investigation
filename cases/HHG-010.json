@@ -1,0 +1,175 @@
+{
+  "case_id": "HHG-010",
+  "case": {
+    "status": "closed_fraud",
+    "verdict": "fraud",
+    "fraud_probability": 0.95,
+    "pattern": "undocumented",
+    "pattern_description": "Flagged device profile is shared across a coordinated syndicate cluster of 10 cards.",
+    "affected_txn_ids": [
+      "3506725"
+    ],
+    "first_suspicious_txn_id": "3506725",
+    "connected_card_ids": [],
+    "connected_device_profiles": [
+      "Windows | Windows 10 | edge 16.0 | 1366x768"
+    ],
+    "exposure_usd": 1000.03,
+    "evidence": [
+      {
+        "claim": "Transaction 3506725 amount is $1000.03, channel is 'online', product is 'R', risk score is 0.9.",
+        "source": "graph",
+        "ref": "get_transaction_context",
+        "entity_ids": [
+          "3506725",
+          "C10434-K1"
+        ]
+      },
+      {
+        "claim": "Transaction 3506725 is associated with card C10434-K1, customer C10434, billing region 469.0.",
+        "source": "graph",
+        "ref": "get_transaction_context",
+        "entity_ids": [
+          "C10434",
+          "C10434-K1"
+        ]
+      },
+      {
+        "claim": "Retrieved 10 historical closed cases referencing card C10434-K1.",
+        "source": "graph",
+        "ref": "get_similar_closed_cases",
+        "entity_ids": [
+          "CC-3549",
+          "CC-4603",
+          "CC-4890",
+          "CC-3949",
+          "CC-1034",
+          "CC-0873",
+          "CC-3954",
+          "CC-2720",
+          "CC-3691",
+          "CC-3219"
+        ]
+      },
+      {
+        "claim": "Card C10434-K1 history contains 36 total transactions. Baseline amount mean=$153.87, stdev=$223.32.",
+        "source": "graph",
+        "ref": "get_card_history_summary",
+        "entity_ids": [
+          "3506725",
+          "C10434-K1"
+        ]
+      },
+      {
+        "claim": "Flagged billing region 469.0 familiarity is 'novel_zero_history' (0 prior transactions in this region).",
+        "source": "graph",
+        "ref": "get_card_history_summary",
+        "entity_ids": [
+          "3506725",
+          "C10434-K1"
+        ]
+      },
+      {
+        "claim": "Device profile links 10 unique cards across the network. Syndicate risk tier: CRITICAL.",
+        "source": "graph",
+        "ref": "get_device_neighbors_summary",
+        "entity_ids": [
+          "3506725",
+          "C10434-K1"
+        ]
+      },
+      {
+        "claim": "Device sharing across 10 accounts represents coordinated syndicate attack.",
+        "source": "graph",
+        "ref": "pattern_reasoner",
+        "entity_ids": [
+          "3506725",
+          "C10434-K1"
+        ]
+      }
+    ],
+    "similar_prior_cases": [
+      "CC-3549",
+      "CC-4603",
+      "CC-4890",
+      "CC-3949",
+      "CC-1034",
+      "CC-0873",
+      "CC-3954",
+      "CC-2720",
+      "CC-3691",
+      "CC-3219"
+    ],
+    "summary": "Flagged device profile is shared across a coordinated syndicate cluster of 10 cards.",
+    "written_to_graph": false,
+    "graph_case_id": ""
+  },
+  "evidence_requests": [],
+  "next_best_actions": {
+    "initial": [
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "Recommended action CREATE_CASE enforced by deterministic policy engine."
+      },
+      {
+        "action": "FILE_REPORT",
+        "route": "L2",
+        "reason": "Statutory SAR filing mandated by policy exposure/pattern."
+      },
+      {
+        "action": "ESCALATE_TO_ANALYST",
+        "route": "auto",
+        "reason": "Recommended action ESCALATE_TO_ANALYST enforced by deterministic policy engine."
+      },
+      {
+        "action": "MONITOR_CONNECTED_CARDS",
+        "route": "auto",
+        "reason": "Recommended action MONITOR_CONNECTED_CARDS enforced by deterministic policy engine."
+      }
+    ],
+    "final": [
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "Recommended action CREATE_CASE enforced by deterministic policy engine."
+      },
+      {
+        "action": "FILE_REPORT",
+        "route": "L2",
+        "reason": "Statutory SAR filing mandated by policy exposure/pattern."
+      },
+      {
+        "action": "ESCALATE_TO_ANALYST",
+        "route": "auto",
+        "reason": "Recommended action ESCALATE_TO_ANALYST enforced by deterministic policy engine."
+      },
+      {
+        "action": "MONITOR_CONNECTED_CARDS",
+        "route": "auto",
+        "reason": "Recommended action MONITOR_CONNECTED_CARDS enforced by deterministic policy engine."
+      }
+    ],
+    "what_changed": "Investigation conclusive upon initial evidence evaluation; actions remained stable."
+  },
+  "sar": {
+    "file": true,
+    "reason": "Regulatory SAR filing mandated for undocumented",
+    "narrative": "Suspicious activity report filed for fraudulent pattern 'undocumented'. Flagged transaction 3506725 and related activity totaled $1,000.03 across victim card C10434-K1. Evidence from graph topology demonstrated unauthorized transactions and compromised infrastructure. Automated policy rules mandated regulatory escalation and preventative blocking.",
+    "subjects": [
+      "C10434",
+      "C10434-K1",
+      "3506725",
+      "Windows | Windows 10 | edge 16.0 | 1366x768"
+    ],
+    "total_amount_usd": 1000.03,
+    "activity_dates": [
+      "2016-11-01",
+      "2016-12-31"
+    ]
+  },
+  "stop_reason": "sufficient_evidence",
+  "tool_calls": 6,
+  "tokens": 0,
+  "latency_s": 4.902
+}

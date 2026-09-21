@@ -1,0 +1,107 @@
+{
+  "case_id": "HHG-009",
+  "case": {
+    "status": "closed_fraud",
+    "verdict": "fraud",
+    "fraud_probability": 0.9,
+    "pattern": "undocumented",
+    "pattern_description": "Customer explicitly disputed purchase of $30.02 stating transaction was not authorized.",
+    "affected_txn_ids": [
+      "3581141"
+    ],
+    "first_suspicious_txn_id": "3581141",
+    "connected_card_ids": [],
+    "connected_device_profiles": [],
+    "exposure_usd": 30.02,
+    "evidence": [
+      {
+        "claim": "Transaction 3581141 amount is $30.02, channel is 'online', product is 'S', risk score is 0.28.",
+        "source": "graph",
+        "ref": "get_transaction_context",
+        "entity_ids": [
+          "3581141",
+          "C08299-K1"
+        ]
+      },
+      {
+        "claim": "Transaction 3581141 is associated with card C08299-K1, customer C08299, billing region 203.0.",
+        "source": "graph",
+        "ref": "get_transaction_context",
+        "entity_ids": [
+          "C08299",
+          "C08299-K1"
+        ]
+      },
+      {
+        "claim": "Card C08299-K1 history contains 56 total transactions. Baseline amount mean=$61.17, stdev=$62.28.",
+        "source": "graph",
+        "ref": "get_card_history_summary",
+        "entity_ids": [
+          "3581141",
+          "C08299-K1"
+        ]
+      },
+      {
+        "claim": "Flagged billing region 203.0 familiarity is 'novel_zero_history' (0 prior transactions in this region).",
+        "source": "graph",
+        "ref": "get_card_history_summary",
+        "entity_ids": [
+          "3581141",
+          "C08299-K1"
+        ]
+      },
+      {
+        "claim": "Device profile links 0 unique cards across the network. Syndicate risk tier: LOW.",
+        "source": "graph",
+        "ref": "get_device_neighbors_summary",
+        "entity_ids": [
+          "3581141",
+          "C08299-K1"
+        ]
+      },
+      {
+        "claim": "Customer report of unauthorized charge verified against card profile.",
+        "source": "graph",
+        "ref": "pattern_reasoner",
+        "entity_ids": [
+          "3581141",
+          "C08299-K1"
+        ]
+      }
+    ],
+    "similar_prior_cases": [],
+    "summary": "Customer explicitly disputed purchase of $30.02 stating transaction was not authorized.",
+    "written_to_graph": false,
+    "graph_case_id": ""
+  },
+  "evidence_requests": [],
+  "next_best_actions": {
+    "initial": [
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "Recommended action CREATE_CASE enforced by deterministic policy engine."
+      }
+    ],
+    "final": [
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "Recommended action CREATE_CASE enforced by deterministic policy engine."
+      }
+    ],
+    "what_changed": "Investigation conclusive upon initial evidence evaluation; actions remained stable."
+  },
+  "sar": {
+    "file": false,
+    "reason": "",
+    "narrative": "",
+    "subjects": [],
+    "total_amount_usd": 0.0,
+    "activity_dates": []
+  },
+  "stop_reason": "sufficient_evidence",
+  "tool_calls": 6,
+  "tokens": 0,
+  "latency_s": 4.925
+}

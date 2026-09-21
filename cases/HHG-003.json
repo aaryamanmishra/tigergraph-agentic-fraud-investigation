@@ -1,0 +1,118 @@
+{
+  "case_id": "HHG-003",
+  "case": {
+    "status": "closed_fraud",
+    "verdict": "fraud",
+    "fraud_probability": 0.9,
+    "pattern": "undocumented",
+    "pattern_description": "Customer explicitly disputed purchase of $49.00 stating transaction was not authorized.",
+    "affected_txn_ids": [
+      "3530164"
+    ],
+    "first_suspicious_txn_id": "3530164",
+    "connected_card_ids": [],
+    "connected_device_profiles": [],
+    "exposure_usd": 49.0,
+    "evidence": [
+      {
+        "claim": "Transaction 3530164 amount is $49.00, channel is 'in_person', product is 'W', risk score is 0.4.",
+        "source": "graph",
+        "ref": "get_transaction_context",
+        "entity_ids": [
+          "3530164",
+          "C08623-K2"
+        ]
+      },
+      {
+        "claim": "Transaction 3530164 is associated with card C08623-K2, customer C08623, billing region 330.0.",
+        "source": "graph",
+        "ref": "get_transaction_context",
+        "entity_ids": [
+          "C08623",
+          "C08623-K2"
+        ]
+      },
+      {
+        "claim": "Retrieved 6 historical closed cases referencing card C08623-K2.",
+        "source": "graph",
+        "ref": "get_similar_closed_cases",
+        "entity_ids": [
+          "CC-2935",
+          "CC-2817",
+          "CC-3327",
+          "CC-4957",
+          "CC-3682",
+          "CC-1589"
+        ]
+      },
+      {
+        "claim": "Card C08623-K2 history contains 1140 total transactions. Baseline amount mean=$129.36, stdev=$159.64.",
+        "source": "graph",
+        "ref": "get_card_history_summary",
+        "entity_ids": [
+          "3530164",
+          "C08623-K2"
+        ]
+      },
+      {
+        "claim": "Flagged billing region 330.0 familiarity is 'novel_zero_history' (0 prior transactions in this region).",
+        "source": "graph",
+        "ref": "get_card_history_summary",
+        "entity_ids": [
+          "3530164",
+          "C08623-K2"
+        ]
+      },
+      {
+        "claim": "Customer report of unauthorized charge verified against card profile.",
+        "source": "graph",
+        "ref": "pattern_reasoner",
+        "entity_ids": [
+          "3530164",
+          "C08623-K2"
+        ]
+      }
+    ],
+    "similar_prior_cases": [
+      "CC-2935",
+      "CC-2817",
+      "CC-3327",
+      "CC-4957",
+      "CC-3682",
+      "CC-1589"
+    ],
+    "summary": "Customer explicitly disputed purchase of $49.00 stating transaction was not authorized.",
+    "written_to_graph": false,
+    "graph_case_id": ""
+  },
+  "evidence_requests": [],
+  "next_best_actions": {
+    "initial": [
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "Recommended action CREATE_CASE enforced by deterministic policy engine."
+      }
+    ],
+    "final": [
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "Recommended action CREATE_CASE enforced by deterministic policy engine."
+      }
+    ],
+    "what_changed": "Investigation conclusive upon initial evidence evaluation; actions remained stable."
+  },
+  "sar": {
+    "file": false,
+    "reason": "",
+    "narrative": "",
+    "subjects": [],
+    "total_amount_usd": 0.0,
+    "activity_dates": []
+  },
+  "stop_reason": "sufficient_evidence",
+  "tool_calls": 5,
+  "tokens": 0,
+  "latency_s": 5.297
+}

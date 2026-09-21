@@ -9,7 +9,7 @@ from typing import Dict, List, Any, Optional
 import time
 import logging
 
-from src.graph.adapter import GraphAdapter, get_graph_adapter
+from src.graph.adapter import GraphAdapter, get_graph_adapter, is_valid_device_profile_id
 from src.agent.tools.summary import EvidenceSummarizer
 
 logger = logging.getLogger(__name__)
@@ -237,7 +237,36 @@ class InvestigationTools:
         try:
             if not device_profile:
                 raise ValueError("Device profile cannot be empty.")
-            res = self.adapter.get_device_neighbors(device_profile=str(device_profile).strip())
+            # Do NOT call .strip() on device_profile: composite IDs may have leading/trailing whitespace
+            dev_prof = str(device_profile)
+            if not is_valid_device_profile_id(dev_prof):
+                logger.info("Non-vertex device metadata passed to get_device_neighbors: %r", dev_prof)
+                empty_data = {
+                    "device_profile": dev_prof,
+                    "connected_cards": [],
+                    "connected_card_count": 0,
+                    "connected_customers": [],
+                    "connected_customer_count": 0,
+                    "total_transactions": 0,
+                    "is_shared_device": False,
+                    "syndicate_risk_tier": "LOW",
+                    "explanation": "No valid DeviceProfile vertex found for provided device metadata."
+                } if summarize else {
+                    "device_profile": dev_prof,
+                    "connected_cards": [],
+                    "connected_customers": [],
+                    "total_txns": 0,
+                    "recent_txn_ids": []
+                }
+                return ToolExecutionResult(
+                    success=True,
+                    tool_name="get_device_neighbors",
+                    source=getattr(self.adapter, "backend", "graph"),
+                    latency_ms=round((time.time() - t0) * 1000, 2),
+                    data=empty_data
+                )
+
+            res = self.adapter.get_device_neighbors(device_profile=dev_prof)
             lat = round((time.time() - t0) * 1000, 2)
             results = res.get("results", [])
             item = results[0] if results else {}
@@ -307,12 +336,20 @@ class InvestigationTools:
     ) -> ToolExecutionResult:
         """
         Retrieves historical closed cases matching the card or device profile.
+        Omits device lookup if device_profile is not a valid DeviceProfile vertex ID.
         """
         t0 = time.time()
         try:
+            target_card = str(card_id or "").strip()
+            # Do NOT call .strip() on device_profile: composite IDs may have leading/trailing whitespace
+            target_dev = str(device_profile or "")
+            if target_dev and not is_valid_device_profile_id(target_dev):
+                logger.info("Omitting device lookup in get_similar_closed_cases for non-vertex metadata: %r", target_dev)
+                target_dev = ""
+
             res = self.adapter.get_similar_closed_cases(
-                card_id=str(card_id or "").strip(),
-                device_profile=str(device_profile or "").strip()
+                card_id=target_card,
+                device_profile=target_dev
             )
             lat = round((time.time() - t0) * 1000, 2)
             cases = res.get("results", [])
@@ -323,8 +360,8 @@ class InvestigationTools:
                 source=res.get("source", "graph"),
                 latency_ms=lat,
                 data={
-                    "card_id": card_id,
-                    "device_profile": device_profile,
+                    "card_id": target_card,
+                    "device_profile": target_dev,
                     "total_similar_cases": len(cases),
                     "cases": cases[:limit]
                 }

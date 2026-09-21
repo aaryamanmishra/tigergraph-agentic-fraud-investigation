@@ -1,0 +1,225 @@
+{
+  "case_id": "HHG-005",
+  "case": {
+    "status": "closed_fraud",
+    "verdict": "fraud",
+    "fraud_probability": 0.95,
+    "pattern": "undocumented",
+    "pattern_description": "Flagged device profile is shared across a coordinated syndicate cluster of 39 cards.",
+    "affected_txn_ids": [
+      "3523199"
+    ],
+    "first_suspicious_txn_id": "3523199",
+    "connected_card_ids": [],
+    "connected_device_profiles": [
+      "iOS Device | iOS 9.3.5 | mobile safari 9.0 | 1024x768"
+    ],
+    "exposure_usd": 100.07,
+    "evidence": [
+      {
+        "claim": "Transaction 3523199 amount is $100.07, channel is 'online', product is 'R', risk score is 0.54.",
+        "source": "graph",
+        "ref": "get_transaction_context",
+        "entity_ids": [
+          "3523199",
+          "C02923-K1"
+        ]
+      },
+      {
+        "claim": "Transaction 3523199 is associated with card C02923-K1, customer C02923, billing region 330.0.",
+        "source": "graph",
+        "ref": "get_transaction_context",
+        "entity_ids": [
+          "C02923",
+          "C02923-K1"
+        ]
+      },
+      {
+        "claim": "Retrieved 8 historical closed cases referencing card C02923-K1.",
+        "source": "graph",
+        "ref": "get_similar_closed_cases",
+        "entity_ids": [
+          "CC-2400",
+          "CC-0374",
+          "CC-2857",
+          "CC-0965",
+          "CC-0219",
+          "CC-2717",
+          "CC-0189",
+          "CC-1672"
+        ]
+      },
+      {
+        "claim": "Card C02923-K1 history contains 92 total transactions. Baseline amount mean=$176.02, stdev=$229.31.",
+        "source": "graph",
+        "ref": "get_card_history_summary",
+        "entity_ids": [
+          "3523199",
+          "C02923-K1"
+        ]
+      },
+      {
+        "claim": "Flagged billing region 330.0 familiarity is 'novel_zero_history' (0 prior transactions in this region).",
+        "source": "graph",
+        "ref": "get_card_history_summary",
+        "entity_ids": [
+          "3523199",
+          "C02923-K1"
+        ]
+      },
+      {
+        "claim": "Device profile links 39 unique cards across the network. Syndicate risk tier: CRITICAL.",
+        "source": "graph",
+        "ref": "get_device_neighbors_summary",
+        "entity_ids": [
+          "3523199",
+          "C02923-K1"
+        ]
+      },
+      {
+        "claim": "Device sharing across 39 accounts represents coordinated syndicate attack.",
+        "source": "graph",
+        "ref": "pattern_reasoner",
+        "entity_ids": [
+          "3523199",
+          "C02923-K1"
+        ]
+      },
+      {
+        "claim": "Transaction 3523199 is flagged with a risk score of 0.54.",
+        "source": "graph",
+        "ref": "llm:GRAPH-TXN-3523199",
+        "entity_ids": [
+          "3523199",
+          "C02923-K1"
+        ]
+      },
+      {
+        "claim": "Device profile \"iOS Device | iOS 9.3.5 | mobile safari 9.0 | 1024x768\" is shared across 39 cards and is marked as syndicate risk CRITICAL.",
+        "source": "graph",
+        "ref": "llm:GRAPH-DEV-iOS Device | iOS 9.3.5 | mobile safari 9.0 | 1024x768",
+        "entity_ids": [
+          "3523199",
+          "C02923-K1"
+        ]
+      },
+      {
+        "claim": "Card C02923-K1 has no prior transactions in the billing region, indicating a novel region.",
+        "source": "graph",
+        "ref": "llm:GRAPH-CARD-C02923-K1",
+        "entity_ids": [
+          "3523199",
+          "C02923-K1"
+        ]
+      },
+      {
+        "claim": "Policy R6 is triggered by the shared device profile, mandating case creation, SAR filing, and monitoring of connected cards.",
+        "source": "document",
+        "ref": "llm:POLICY-R6",
+        "entity_ids": [
+          "3523199",
+          "C02923-K1"
+        ]
+      },
+      {
+        "claim": "Risk score > 0.30 triggers internal case creation per policy.",
+        "source": "document",
+        "ref": "llm:POLICY-SAR",
+        "entity_ids": [
+          "3523199",
+          "C02923-K1"
+        ]
+      },
+      {
+        "claim": "Exposure $100.07 < $1,000, so SAR is not triggered by exposure alone, but policy R6 triggers SAR due to shared device.",
+        "source": "document",
+        "ref": "llm:POLICY-R6",
+        "entity_ids": [
+          "3523199",
+          "C02923-K1"
+        ]
+      }
+    ],
+    "similar_prior_cases": [
+      "CC-2400",
+      "CC-0374",
+      "CC-2857",
+      "CC-0965",
+      "CC-0219",
+      "CC-2717",
+      "CC-0189",
+      "CC-1672"
+    ],
+    "summary": "Flagged device profile is shared across a coordinated syndicate cluster of 39 cards.",
+    "written_to_graph": true,
+    "graph_case_id": "HHG-005"
+  },
+  "evidence_requests": [],
+  "next_best_actions": {
+    "initial": [
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "Recommended action CREATE_CASE enforced by deterministic policy engine."
+      },
+      {
+        "action": "FILE_REPORT",
+        "route": "L2",
+        "reason": "Statutory SAR filing mandated by policy exposure/pattern."
+      },
+      {
+        "action": "ESCALATE_TO_ANALYST",
+        "route": "auto",
+        "reason": "Recommended action ESCALATE_TO_ANALYST enforced by deterministic policy engine."
+      },
+      {
+        "action": "MONITOR_CONNECTED_CARDS",
+        "route": "auto",
+        "reason": "Recommended action MONITOR_CONNECTED_CARDS enforced by deterministic policy engine."
+      }
+    ],
+    "final": [
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "Recommended action CREATE_CASE enforced by deterministic policy engine."
+      },
+      {
+        "action": "FILE_REPORT",
+        "route": "L2",
+        "reason": "Statutory SAR filing mandated by policy exposure/pattern."
+      },
+      {
+        "action": "ESCALATE_TO_ANALYST",
+        "route": "auto",
+        "reason": "Recommended action ESCALATE_TO_ANALYST enforced by deterministic policy engine."
+      },
+      {
+        "action": "MONITOR_CONNECTED_CARDS",
+        "route": "auto",
+        "reason": "Recommended action MONITOR_CONNECTED_CARDS enforced by deterministic policy engine."
+      }
+    ],
+    "what_changed": "Investigation conclusive upon initial evidence evaluation; actions remained stable."
+  },
+  "sar": {
+    "file": true,
+    "reason": "Regulatory SAR filing mandated for undocumented",
+    "narrative": "Suspicious activity report filed for fraudulent pattern 'undocumented'. Flagged transaction 3523199 and related activity totaled $100.07 across victim card C02923-K1. Evidence from graph topology demonstrated unauthorized transactions and compromised infrastructure. Automated policy rules mandated regulatory escalation and preventative blocking.",
+    "subjects": [
+      "C02923",
+      "C02923-K1",
+      "3523199",
+      "iOS Device | iOS 9.3.5 | mobile safari 9.0 | 1024x768"
+    ],
+    "total_amount_usd": 100.07,
+    "activity_dates": [
+      "2016-11-01",
+      "2016-12-31"
+    ]
+  },
+  "stop_reason": "sufficient_evidence",
+  "tool_calls": 6,
+  "tokens": 613,
+  "latency_s": 22.25
+}

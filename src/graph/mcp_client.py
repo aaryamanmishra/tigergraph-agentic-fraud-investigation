@@ -13,6 +13,7 @@ import logging
 from typing import Dict, List, Any, Optional
 
 from src.config import config, _load_dotenv
+from src.graph.adapter import is_valid_device_profile_id
 
 logger = logging.getLogger("TigerGraphMCPClient")
 
@@ -376,14 +377,28 @@ class TigerGraphMCPClient:
         Operation 5: Discovers cards and customers sharing a device profile.
         Maps to installed query get_device_neighbors.
         """
-        if not device_profile or not str(device_profile).strip():
+        if not device_profile:
             raise ValueError("device_profile cannot be empty")
+
+        dev_prof = str(device_profile)
+        if not is_valid_device_profile_id(dev_prof):
+            logger.info("Non-vertex device metadata passed to get_device_neighbors: %r", dev_prof)
+            return {
+                "success": True,
+                "query": "get_device_neighbors",
+                "device_profile": dev_prof,
+                "cards": [],
+                "customers": [],
+                "total_transactions_on_device": 0,
+                "latency_ms": 0.0,
+                "source": "tigergraph_mcp"
+            }
 
         t0 = time.time()
         try:
             res = await self.tools_module.run_installed_query(
                 query_name="get_device_neighbors",
-                params={"target_device": (str(device_profile).strip(),)},
+                params={"target_device": (dev_prof,)},
                 profile=self.profile,
                 graph_name=self.graph_name
             )
@@ -484,12 +499,18 @@ class TigerGraphMCPClient:
         """
         Operation 7: Retrieves historical closed cases linked to card or device.
         Maps to installed query get_similar_closed_cases.
+        Omits device lookup if device_profile is not a valid DeviceProfile vertex ID.
         """
+        target_dev = str(device_profile or "")
+        if target_dev and not is_valid_device_profile_id(target_dev):
+            logger.info("Omitting device lookup in get_similar_closed_cases for non-vertex metadata: %r", target_dev)
+            target_dev = ""
+
         t0 = time.time()
         try:
             res = await self.tools_module.run_installed_query(
                 query_name="get_similar_closed_cases",
-                params={"target_card_id": card_id or "", "target_device_profile": device_profile or ""},
+                params={"target_card_id": card_id or "", "target_device_profile": target_dev},
                 profile=self.profile,
                 graph_name=self.graph_name
             )

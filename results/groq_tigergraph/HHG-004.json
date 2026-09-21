@@ -1,0 +1,145 @@
+{
+  "case_id": "HHG-004",
+  "case": {
+    "status": "closed_fraud",
+    "verdict": "fraud",
+    "fraud_probability": 0.99,
+    "pattern": "undocumented",
+    "pattern_description": "Unauthorized transaction not matching known fraud patterns; customer denied charge, no shared link, exposure <$1000.",
+    "affected_txn_ids": [
+      "3583227"
+    ],
+    "first_suspicious_txn_id": "3583227",
+    "connected_card_ids": [],
+    "connected_device_profiles": [],
+    "exposure_usd": 128.33,
+    "evidence": [
+      {
+        "claim": "Transaction 3583227 amount is $128.33, channel is 'online', product is 'C', risk score is 0.34.",
+        "source": "graph",
+        "ref": "get_transaction_context",
+        "entity_ids": [
+          "3583227",
+          "C08106-K1"
+        ]
+      },
+      {
+        "claim": "Transaction 3583227 is associated with card C08106-K1, customer C08106, billing region .",
+        "source": "graph",
+        "ref": "get_transaction_context",
+        "entity_ids": [
+          "C08106",
+          "C08106-K1"
+        ]
+      },
+      {
+        "claim": "Card C08106-K1 history contains 216 total transactions. Baseline amount mean=$35.52, stdev=$28.42.",
+        "source": "graph",
+        "ref": "get_card_history_summary",
+        "entity_ids": [
+          "3583227",
+          "C08106-K1"
+        ]
+      },
+      {
+        "claim": "Flagged billing region  familiarity is 'novel_zero_history' (0 prior transactions in this region).",
+        "source": "graph",
+        "ref": "get_card_history_summary",
+        "entity_ids": [
+          "3583227",
+          "C08106-K1"
+        ]
+      },
+      {
+        "claim": "Device profile links 0 unique cards across the network. Syndicate risk tier: LOW.",
+        "source": "graph",
+        "ref": "get_device_neighbors_summary",
+        "entity_ids": [
+          "3583227",
+          "C08106-K1"
+        ]
+      },
+      {
+        "claim": "Customer report of unauthorized charge verified against card profile.",
+        "source": "graph",
+        "ref": "pattern_reasoner",
+        "entity_ids": [
+          "3583227",
+          "C08106-K1"
+        ]
+      },
+      {
+        "claim": "Transaction 3583227 is flagged and exceeds 3 standard deviations above the card's historical mean, indicating a significant anomaly.",
+        "source": "graph",
+        "ref": "llm:GRAPH-TXN-3583227",
+        "entity_ids": [
+          "3583227",
+          "C08106-K1"
+        ]
+      },
+      {
+        "claim": "Card C08106-K1 has no prior transaction history in the billing region, making the region novel and increasing fraud risk.",
+        "source": "graph",
+        "ref": "llm:GRAPH-CARD-C08106-K1",
+        "entity_ids": [
+          "3583227",
+          "C08106-K1"
+        ]
+      },
+      {
+        "claim": "Device profile is unknown and not shared, with low syndicate risk, reducing evidence of coordinated device ring activity.",
+        "source": "graph",
+        "ref": "llm:GRAPH-DEV- |  | firefox 47.0 | ",
+        "entity_ids": [
+          "3583227",
+          "C08106-K1"
+        ]
+      }
+    ],
+    "similar_prior_cases": [],
+    "summary": "Unauthorized transaction not matching known fraud patterns; customer denied charge, no shared link, exposure <$1000.",
+    "written_to_graph": true,
+    "graph_case_id": "HHG-004"
+  },
+  "evidence_requests": [
+    {
+      "type": "customer_validation",
+      "asked_after_step": 2,
+      "assumed_response": "Cardholder confirmed fraudulent transaction."
+    }
+  ],
+  "next_best_actions": {
+    "initial": [
+      {
+        "action": "VERIFY_WITH_CUSTOMER",
+        "route": "auto",
+        "reason": "Rule R1: Verify with customer prior to blocking on single score signal."
+      }
+    ],
+    "final": [
+      {
+        "action": "BLOCK_CARD",
+        "route": "L1",
+        "reason": "Recommended action BLOCK_CARD enforced by deterministic policy engine."
+      },
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "Recommended action CREATE_CASE enforced by deterministic policy engine."
+      }
+    ],
+    "what_changed": "Customer verification response received (denied). Verdict transitioned to fraud, resulting in final action set: ['BLOCK_CARD', 'CREATE_CASE']."
+  },
+  "sar": {
+    "file": false,
+    "reason": "",
+    "narrative": "",
+    "subjects": [],
+    "total_amount_usd": 0.0,
+    "activity_dates": []
+  },
+  "stop_reason": "customer_denied",
+  "tool_calls": 6,
+  "tokens": 814,
+  "latency_s": 21.062
+}

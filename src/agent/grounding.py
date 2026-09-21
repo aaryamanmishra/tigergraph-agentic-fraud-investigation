@@ -62,11 +62,13 @@ class GroundingValidator:
         valid = []
         rejected = []
         for dp in candidate_profiles:
-            clean = str(dp).strip()
-            if self.registry.is_valid_device_profile(clean):
-                valid.append(clean)
+            raw = str(dp)
+            if self.registry.is_valid_device_profile(raw):
+                valid.append(raw)
+            elif self.registry.is_valid_device_profile(raw.strip()):
+                valid.append(raw.strip())
             else:
-                rejected.append(clean)
+                rejected.append(raw)
         return valid, rejected
 
     def compute_grounded_exposure(self, valid_txn_ids: List[str]) -> float:

@@ -1,0 +1,155 @@
+{
+  "case_id": "HHG-007",
+  "case": {
+    "status": "closed_fraud",
+    "verdict": "fraud",
+    "fraud_probability": 0.99,
+    "pattern": "out_of_region_use",
+    "pattern_description": "",
+    "affected_txn_ids": [
+      "3514948"
+    ],
+    "first_suspicious_txn_id": "3514948",
+    "connected_card_ids": [],
+    "connected_device_profiles": [],
+    "exposure_usd": 111.92,
+    "evidence": [
+      {
+        "claim": "Transaction 3514948 amount is $111.92, channel is 'in_person', product is 'W', risk score is 0.87.",
+        "source": "graph",
+        "ref": "get_transaction_context",
+        "entity_ids": [
+          "3514948",
+          "C09933-K2"
+        ]
+      },
+      {
+        "claim": "Transaction 3514948 is associated with card C09933-K2, customer C09933, billing region 264.0.",
+        "source": "graph",
+        "ref": "get_transaction_context",
+        "entity_ids": [
+          "C09933",
+          "C09933-K2"
+        ]
+      },
+      {
+        "claim": "Retrieved 10 historical closed cases referencing card C09933-K2.",
+        "source": "graph",
+        "ref": "get_similar_closed_cases",
+        "entity_ids": [
+          "CC-0104",
+          "CC-1524",
+          "CC-5092",
+          "CC-4277",
+          "CC-2986",
+          "CC-3439",
+          "CC-1228",
+          "CC-4597",
+          "CC-3821",
+          "CC-4196"
+        ]
+      },
+      {
+        "claim": "Card C09933-K2 history contains 2792 total transactions. Baseline amount mean=$123.85, stdev=$185.21.",
+        "source": "graph",
+        "ref": "get_card_history_summary",
+        "entity_ids": [
+          "3514948",
+          "C09933-K2"
+        ]
+      },
+      {
+        "claim": "Flagged billing region 264.0 familiarity is 'novel_zero_history' (0 prior transactions in this region).",
+        "source": "graph",
+        "ref": "get_card_history_summary",
+        "entity_ids": [
+          "3514948",
+          "C09933-K2"
+        ]
+      },
+      {
+        "claim": "High score coupled with complete lack of geographic familiarity indicates out-of-region card compromise.",
+        "source": "graph",
+        "ref": "pattern_reasoner",
+        "entity_ids": [
+          "3514948",
+          "C09933-K2"
+        ]
+      },
+      {
+        "claim": "Transaction 3514948 is an out-of-region transaction with no prior history for card C09933-K2",
+        "source": "graph",
+        "ref": "llm:GRAPH-TXN-3514948",
+        "entity_ids": [
+          "3514948",
+          "C09933-K2"
+        ]
+      },
+      {
+        "claim": "No evidence of shared origin (device profile, region, or email domain) across multiple cards for this transaction",
+        "source": "graph",
+        "ref": "llm:GRAPH-CARD-C09933-K2",
+        "entity_ids": [
+          "3514948",
+          "C09933-K2"
+        ]
+      }
+    ],
+    "similar_prior_cases": [
+      "CC-0104",
+      "CC-1524",
+      "CC-5092",
+      "CC-4277",
+      "CC-2986",
+      "CC-3439",
+      "CC-1228",
+      "CC-4597",
+      "CC-3821",
+      "CC-4196"
+    ],
+    "summary": "High-risk transaction ($111.92, score 0.87) conducted in completely novel region with zero prior history.",
+    "written_to_graph": true,
+    "graph_case_id": "HHG-007"
+  },
+  "evidence_requests": [
+    {
+      "type": "customer_validation",
+      "asked_after_step": 2,
+      "assumed_response": "Cardholder confirmed fraudulent transaction."
+    }
+  ],
+  "next_best_actions": {
+    "initial": [
+      {
+        "action": "VERIFY_WITH_CUSTOMER",
+        "route": "auto",
+        "reason": "Rule R1: Verify with customer prior to blocking on single score signal."
+      }
+    ],
+    "final": [
+      {
+        "action": "BLOCK_CARD",
+        "route": "L1",
+        "reason": "Recommended action BLOCK_CARD enforced by deterministic policy engine."
+      },
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "Recommended action CREATE_CASE enforced by deterministic policy engine."
+      }
+    ],
+    "what_changed": "Customer verification response received (denied). Verdict transitioned to fraud, resulting in final action set: ['BLOCK_CARD', 'CREATE_CASE']."
+  },
+  "sar": {
+    "file": false,
+    "reason": "",
+    "narrative": "",
+    "subjects": [],
+    "total_amount_usd": 0.0,
+    "activity_dates": []
+  },
+  "stop_reason": "customer_denied",
+  "tool_calls": 5,
+  "tokens": 658,
+  "latency_s": 36.931
+}

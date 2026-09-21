@@ -15,6 +15,7 @@ from src.agent.state import (
     EvidenceCategory
 )
 from src.agent.tools.contracts import InvestigationTools
+from src.graph.adapter import is_valid_device_profile_id
 from src.policy.engine import PolicyEngine, InvestigationState as PolicyState
 from src.policy.actions import Action, ApprovalRoute
 from src.agent.llm.base import BaseLLMProvider
@@ -182,6 +183,8 @@ class InvestigationNodes:
         """Stage 4: Retrieves historical closed cases matching card or device profile."""
         card_id = state.card_id
         dev_prof = state.device_profile_ids[0] if state.device_profile_ids else ""
+        if dev_prof and not is_valid_device_profile_id(dev_prof):
+            dev_prof = ""
 
         res = tools.get_similar_closed_cases(card_id=card_id, device_profile=dev_prof)
         state.tool_calls.append(res.to_dict())
@@ -202,6 +205,16 @@ class InvestigationNodes:
                 evidence_discovered=f"Found {total_cases} prior closed cases",
                 result="SUCCESS",
                 state_change=f"prior_case_evidence -> {total_cases} cases"
+            )
+        else:
+            last_error = res.error or "Unknown error"
+            state.errors.append(f"get_similar_closed_cases failed: {last_error}")
+            state.append_timeline_event(
+                stage="retrieve_prior_cases",
+                tool_used="get_similar_closed_cases",
+                evidence_discovered=f"Failed to retrieve prior cases: {last_error}",
+                result="FAILED",
+                state_change="prior_case_evidence -> 0 cases"
             )
 
         return state

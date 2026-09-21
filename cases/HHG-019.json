@@ -1,0 +1,136 @@
+{
+  "case_id": "HHG-019",
+  "case": {
+    "status": "closed_fraud",
+    "verdict": "fraud",
+    "fraud_probability": 0.99,
+    "pattern": "out_of_region_use",
+    "pattern_description": "",
+    "affected_txn_ids": [
+      "3503878"
+    ],
+    "first_suspicious_txn_id": "3503878",
+    "connected_card_ids": [],
+    "connected_device_profiles": [
+      "Windows | other | chrome 61.0 | 1280x720"
+    ],
+    "exposure_usd": 99.92,
+    "evidence": [
+      {
+        "claim": "Transaction 3503878 amount is $99.92, channel is 'online', product is 'R', risk score is 0.9.",
+        "source": "graph",
+        "ref": "get_transaction_context",
+        "entity_ids": [
+          "3503878",
+          "C07987-K2"
+        ]
+      },
+      {
+        "claim": "Transaction 3503878 is associated with card C07987-K2, customer C07987, billing region 264.0.",
+        "source": "graph",
+        "ref": "get_transaction_context",
+        "entity_ids": [
+          "C07987",
+          "C07987-K2"
+        ]
+      },
+      {
+        "claim": "Retrieved 4 historical closed cases referencing card C07987-K2.",
+        "source": "graph",
+        "ref": "get_similar_closed_cases",
+        "entity_ids": [
+          "CC-2011",
+          "CC-2860",
+          "CC-5026",
+          "CC-2087"
+        ]
+      },
+      {
+        "claim": "Card C07987-K2 history contains 248 total transactions. Baseline amount mean=$199.23, stdev=$233.36.",
+        "source": "graph",
+        "ref": "get_card_history_summary",
+        "entity_ids": [
+          "3503878",
+          "C07987-K2"
+        ]
+      },
+      {
+        "claim": "Flagged billing region 264.0 familiarity is 'novel_zero_history' (0 prior transactions in this region).",
+        "source": "graph",
+        "ref": "get_card_history_summary",
+        "entity_ids": [
+          "3503878",
+          "C07987-K2"
+        ]
+      },
+      {
+        "claim": "Device profile links 5 unique cards across the network. Syndicate risk tier: ELEVATED.",
+        "source": "graph",
+        "ref": "get_device_neighbors_summary",
+        "entity_ids": [
+          "3503878",
+          "C07987-K2"
+        ]
+      },
+      {
+        "claim": "High score coupled with complete lack of geographic familiarity indicates out-of-region card compromise.",
+        "source": "graph",
+        "ref": "pattern_reasoner",
+        "entity_ids": [
+          "3503878",
+          "C07987-K2"
+        ]
+      }
+    ],
+    "similar_prior_cases": [
+      "CC-2011",
+      "CC-2860",
+      "CC-5026",
+      "CC-2087"
+    ],
+    "summary": "High-risk transaction ($99.92, score 0.90) conducted in completely novel region with zero prior history.",
+    "written_to_graph": false,
+    "graph_case_id": ""
+  },
+  "evidence_requests": [
+    {
+      "type": "customer_validation",
+      "asked_after_step": 2,
+      "assumed_response": "Cardholder confirmed fraudulent transaction."
+    }
+  ],
+  "next_best_actions": {
+    "initial": [
+      {
+        "action": "VERIFY_WITH_CUSTOMER",
+        "route": "auto",
+        "reason": "Rule R1: Verify with customer prior to blocking on single score signal."
+      }
+    ],
+    "final": [
+      {
+        "action": "BLOCK_CARD",
+        "route": "L1",
+        "reason": "Recommended action BLOCK_CARD enforced by deterministic policy engine."
+      },
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "Recommended action CREATE_CASE enforced by deterministic policy engine."
+      }
+    ],
+    "what_changed": "Customer verification response received (denied). Verdict transitioned to fraud, resulting in final action set: ['BLOCK_CARD', 'CREATE_CASE']."
+  },
+  "sar": {
+    "file": false,
+    "reason": "",
+    "narrative": "",
+    "subjects": [],
+    "total_amount_usd": 0.0,
+    "activity_dates": []
+  },
+  "stop_reason": "customer_denied",
+  "tool_calls": 6,
+  "tokens": 0,
+  "latency_s": 6.941
+}

@@ -1,0 +1,197 @@
+{
+  "case_id": "HHG-011",
+  "case": {
+    "status": "closed_fraud",
+    "verdict": "fraud",
+    "fraud_probability": 0.9,
+    "pattern": "undocumented",
+    "pattern_description": "Customer explicitly disputed purchase of $131.30 stating transaction was not authorized.",
+    "affected_txn_ids": [
+      "3583368"
+    ],
+    "first_suspicious_txn_id": "3583368",
+    "connected_card_ids": [],
+    "connected_device_profiles": [
+      "SM-G610F Build/NRD90M |  | chrome 66.0 for android | "
+    ],
+    "exposure_usd": 131.3,
+    "evidence": [
+      {
+        "claim": "Transaction 3583368 amount is $131.30, channel is 'online', product is 'C', risk score is 0.39.",
+        "source": "graph",
+        "ref": "get_transaction_context",
+        "entity_ids": [
+          "3583368",
+          "C11923-K2"
+        ]
+      },
+      {
+        "claim": "Transaction 3583368 is associated with card C11923-K2, customer C11923, billing region .",
+        "source": "graph",
+        "ref": "get_transaction_context",
+        "entity_ids": [
+          "C11923",
+          "C11923-K2"
+        ]
+      },
+      {
+        "claim": "Retrieved 10 historical closed cases referencing card C11923-K2.",
+        "source": "graph",
+        "ref": "get_similar_closed_cases",
+        "entity_ids": [
+          "CC-4743",
+          "CC-3905",
+          "CC-1056",
+          "CC-0290",
+          "CC-2247",
+          "CC-4501",
+          "CC-2673",
+          "CC-2799",
+          "CC-3039",
+          "CC-0031"
+        ]
+      },
+      {
+        "claim": "Card C11923-K2 history contains 10361 total transactions. Baseline amount mean=$39.45, stdev=$36.18.",
+        "source": "graph",
+        "ref": "get_card_history_summary",
+        "entity_ids": [
+          "3583368",
+          "C11923-K2"
+        ]
+      },
+      {
+        "claim": "Flagged billing region  familiarity is 'novel_zero_history' (0 prior transactions in this region).",
+        "source": "graph",
+        "ref": "get_card_history_summary",
+        "entity_ids": [
+          "3583368",
+          "C11923-K2"
+        ]
+      },
+      {
+        "claim": "Device profile links 4 unique cards across the network. Syndicate risk tier: ELEVATED.",
+        "source": "graph",
+        "ref": "get_device_neighbors_summary",
+        "entity_ids": [
+          "3583368",
+          "C11923-K2"
+        ]
+      },
+      {
+        "claim": "Customer report of unauthorized charge verified against card profile.",
+        "source": "graph",
+        "ref": "pattern_reasoner",
+        "entity_ids": [
+          "3583368",
+          "C11923-K2"
+        ]
+      },
+      {
+        "claim": "Transaction 3583368 is flagged and disputed by the customer",
+        "source": "graph",
+        "ref": "llm:GRAPH-TXN-3583368",
+        "entity_ids": [
+          "3583368",
+          "C11923-K2"
+        ]
+      },
+      {
+        "claim": "Card C11923-K2 has extensive historical activity but no prior transactions in the billing region, indicating a novel region",
+        "source": "graph",
+        "ref": "llm:GRAPH-CARD-C11923-K2",
+        "entity_ids": [
+          "3583368",
+          "C11923-K2"
+        ]
+      },
+      {
+        "claim": "Device profile SM-G610F Build/NRD90M is shared across 4 cards and has elevated syndicate risk, satisfying shared origin criteria",
+        "source": "graph",
+        "ref": "llm:GRAPH-DEV-SM-G610F Build/NRD90M |  | chrome 66.0 for android |",
+        "entity_ids": [
+          "3583368",
+          "C11923-K2"
+        ]
+      },
+      {
+        "claim": "Policy R2 and R6 mandate card block and case creation for this scenario",
+        "source": "document",
+        "ref": "llm:POLICY-R2",
+        "entity_ids": [
+          "3583368",
+          "C11923-K2"
+        ]
+      }
+    ],
+    "similar_prior_cases": [
+      "CC-4743",
+      "CC-3905",
+      "CC-1056",
+      "CC-0290",
+      "CC-2247",
+      "CC-4501",
+      "CC-2673",
+      "CC-2799",
+      "CC-3039",
+      "CC-0031"
+    ],
+    "summary": "Customer explicitly disputed purchase of $131.30 stating transaction was not authorized.",
+    "written_to_graph": true,
+    "graph_case_id": "HHG-011"
+  },
+  "evidence_requests": [
+    {
+      "type": "customer_validation",
+      "asked_after_step": 1,
+      "assumed_response": "Customer confirms they did not authorize the transaction"
+    }
+  ],
+  "next_best_actions": {
+    "initial": [
+      {
+        "action": "VERIFY_WITH_CUSTOMER",
+        "route": "auto",
+        "reason": "Rule R1: Verify with customer prior to blocking on single score signal."
+      }
+    ],
+    "final": [
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "Recommended action CREATE_CASE enforced by deterministic policy engine."
+      },
+      {
+        "action": "FILE_REPORT",
+        "route": "L2",
+        "reason": "Statutory SAR filing mandated by policy exposure/pattern."
+      },
+      {
+        "action": "MONITOR_CONNECTED_CARDS",
+        "route": "auto",
+        "reason": "Recommended action MONITOR_CONNECTED_CARDS enforced by deterministic policy engine."
+      }
+    ],
+    "what_changed": "Customer verification response received (confirmed). Verdict transitioned to fraud, resulting in final action set: ['CREATE_CASE', 'FILE_REPORT', 'MONITOR_CONNECTED_CARDS']."
+  },
+  "sar": {
+    "file": true,
+    "reason": "Regulatory SAR filing mandated for undocumented",
+    "narrative": "Suspicious activity report filed for fraudulent pattern 'undocumented'. Flagged transaction 3583368 and related activity totaled $131.30 across victim card C11923-K2. Evidence from graph topology demonstrated unauthorized transactions and compromised infrastructure. Automated policy rules mandated regulatory escalation and preventative blocking.",
+    "subjects": [
+      "C11923",
+      "C11923-K2",
+      "3583368",
+      "SM-G610F Build/NRD90M |  | chrome 66.0 for android | "
+    ],
+    "total_amount_usd": 131.3,
+    "activity_dates": [
+      "2016-11-01",
+      "2016-12-31"
+    ]
+  },
+  "stop_reason": "sufficient_evidence",
+  "tool_calls": 6,
+  "tokens": 572,
+  "latency_s": 81.763
+}
