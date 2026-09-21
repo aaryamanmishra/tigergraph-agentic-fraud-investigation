@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Error • TigerGraph Fraud Console</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="error-body">
+    <div class="error-container">
+        <div class="error-icon">⚠️</div>
+        <h2>Investigation Console Notice</h2>
+        <p class="error-message">{{ message }}</p>
+        <div class="error-actions">
+            <a href="/" class="btn btn-primary">Return to Default Case (HHG-014)</a>
+        </div>
+    </div>
+</body>
+</html>

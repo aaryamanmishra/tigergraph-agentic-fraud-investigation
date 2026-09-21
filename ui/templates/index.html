@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ case_id }} • TigerGraph Fraud Investigation Console</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="app-layout">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                <div class="brand-logo">🛡️</div>
+                <div class="brand-text">
+                    <h2>Fraud Console</h2>
+                    <span>TigerGraph • Groq • GraphRAG</span>
+                </div>
+            </div>
+
+            <div class="sidebar-section">
+                <label class="sidebar-label" for="case-select">Select Investigation Case</label>
+                <form id="case-nav-form" action="" method="GET" class="case-select-form">
+                    <select id="case-select" class="form-select" onchange="navigateToCase(this.value)">
+                        {% for c in cases %}
+                        <option value="{{ c }}" {% if c == case_id %}selected{% endif %}>{{ c }}</option>
+                        {% endfor %}
+                    </select>
+                </form>
+
+                <!-- Navigation Controls -->
+                <div class="nav-btn-group">
+                    {% if prev_case %}
+                    <a href="{{ url_for('view_case', case_id=prev_case) }}" class="btn btn-nav" id="btn-prev" title="Go to previous case ({{ prev_case }})">
+                        ⬅️ Prev
+                    </a>
+                    {% else %}
+                    <button class="btn btn-nav btn-disabled" id="btn-prev" disabled>⬅️ Prev</button>
+                    {% endif %}
+
+                    {% if next_case %}
+                    <a href="{{ url_for('view_case', case_id=next_case) }}" class="btn btn-nav" id="btn-next" title="Go to next case ({{ next_case }})">
+                        Next ➡️
+                    </a>
+                    {% else %}
+                    <button class="btn btn-nav btn-disabled" id="btn-next" disabled>Next ➡️</button>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Case Quick List -->
+            <div class="sidebar-section">
+                <div class="sidebar-label">Benchmark Suite Index ({{ cases|length }}/20)</div>
+                <div class="case-quick-list">
+                    {% for c in cases %}
+                    <a href="{{ url_for('view_case', case_id=c) }}" class="case-quick-item {% if c == case_id %}active{% endif %}">
+                        <span class="case-item-id">{{ c }}</span>
+                        {% if c == case_id %}<span class="active-dot">●</span>{% endif %}
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Benchmark Info -->
+            <div class="sidebar-footer">
+                <div class="spec-row"><span>Backend:</span><strong>TigerGraph FraudNet</strong></div>
+                <div class="spec-row"><span>Reasoning:</span><strong>Groq gpt-oss-20b</strong></div>
+                <div class="spec-row"><span>Policy:</span><strong>Deterministic Matrix</strong></div>
+                <div class="spec-row"><span>Validation:</span><strong>20/20 Passed</strong></div>
+            </div>
+        </aside>
+
+        <!-- Main Content Viewport -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="console-header">
+                <div class="header-titles">
+                    <h1>TigerGraph Agentic Fraud Investigation</h1>
+                    <p class="subtitle">Graph-powered investigation console • Groq reasoning • TigerGraph evidence</p>
+                </div>
+                <div class="replay-badge">
+                    <span class="pulse-icon">●</span>
+                    <span>Replay Mode — validated benchmark investigation</span>
+                </div>
+            </header>
+
+            <!-- Metrics Bar -->
+            <section class="metrics-grid">
+                <div class="metric-card">
+                    <span class="metric-label">Case Identifier</span>
+                    <div class="metric-value highlight">{{ case_id }}</div>
+                </div>
+
+                <div class="metric-card">
+                    <span class="metric-label">Final Verdict</span>
+                    <div class="metric-badge-container">
+                        {% if case.verdict == 'fraud' %}
+                        <span class="badge badge-fraud">CONFIRMED FRAUD</span>
+                        {% elif case.verdict == 'legitimate' %}
+                        <span class="badge badge-legit">LEGITIMATE</span>
+                        {% else %}
+                        <span class="badge badge-neutral">{{ case.verdict|upper }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <span class="metric-label">Fraud Probability</span>
+                    <div class="metric-value">
+                        {% if case.fraud_probability is defined and case.fraud_probability is not none %}
+                            {{ (case.fraud_probability * 100)|round(1) }}%
+                        {% else %}
+                            N/A
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <span class="metric-label">Calculated Exposure</span>
+                    <div class="metric-value">
+                        {% if case.exposure_usd is defined and case.exposure_usd is not none %}
+                            ${{ "{:,.2f}".format(case.exposure_usd) }}
+                        {% else %}
+                            $0.00
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <span class="metric-label">Graph Tool Calls</span>
+                    <div class="metric-value">{{ data.tool_calls|default(0) }}</div>
+                </div>
+
+                <div class="metric-card">
+                    <span class="metric-label">Investigation Latency</span>
+                    <div class="metric-value">
+                        {% if data.latency_s is defined and data.latency_s is not none %}
+                            {{ data.latency_s|round(2) }}s
+                        {% else %}
+                            0.0s
+                        {% endif %}
+                    </div>
+                </div>
+            </section>
+
+            <!-- Lifecycle Progression -->
+            <section class="section-container">
+                <h3 class="section-title">🔄 Investigation Lifecycle Progression</h3>
+                <div class="lifecycle-track">
+                    <div class="lifecycle-step step-complete">
+                        <div class="step-num">1</div>
+                        <div class="step-content">
+                            <h4>Case Trigger</h4>
+                            <p>{{ trigger.trigger_type|default('Risk Model Anomaly') }}</p>
+                        </div>
+                    </div>
+                    <div class="lifecycle-step step-complete">
+                        <div class="step-num">2</div>
+                        <div class="step-content">
+                            <h4>Graph Context</h4>
+                            <p>{{ data.tool_calls|default(0) }} Graph operations executed</p>
+                        </div>
+                    </div>
+                    <div class="lifecycle-step step-complete">
+                        <div class="step-num">3</div>
+                        <div class="step-content">
+                            <h4>GraphRAG Retrieval</h4>
+                            <p>{{ case.similar_prior_cases|length|default(0) }} Precedent case(s) retrieved</p>
+                        </div>
+                    </div>
+                    <div class="lifecycle-step {% if evidence_requests|length > 0 %}step-complete{% else %}step-skipped{% endif %}">
+                        <div class="step-num">4</div>
+                        <div class="step-content">
+                            <h4>Uncertainty & Loops</h4>
+                            <p>
+                                {% if evidence_requests|length > 0 %}
+                                    {{ evidence_requests|length }} Evidence request(s) raised
+                                {% else %}
+                                    Evidence sufficient (no request)
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                    <div class="lifecycle-step step-complete">
+                        <div class="step-num">5</div>
+                        <div class="step-content">
+                            <h4>Deterministic Policy</h4>
+                            <p>Stop reason: '{{ data.stop_reason|default('completed') }}'</p>
+                        </div>
+                    </div>
+                    <div class="lifecycle-step step-complete">
+                        <div class="step-num">6</div>
+                        <div class="step-content">
+                            <h4>Case Disposition</h4>
+                            <p>Verdict: {{ case.verdict|upper }} • In Graph: {{ case.written_to_graph|default(false) }}</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Case Overview & Graph Neighborhood Grid -->
+            <div class="two-col-grid">
+                <!-- Case Overview -->
+                <section class="card">
+                    <h3 class="card-header">📋 Case Overview & Trigger Context</h3>
+                    <div class="overview-list">
+                        <div class="overview-row">
+                            <span class="label">Trigger Type:</span>
+                            <span class="value"><code>{{ trigger.trigger_type|default('Risk Model Anomaly') }}</code></span>
+                        </div>
+                        <div class="overview-row">
+                            <span class="label">Trigger Timestamp:</span>
+                            <span class="value">{{ trigger.opened_at|default('Recorded In Benchmark') }}</span>
+                        </div>
+                        <div class="overview-row">
+                            <span class="label">Initial Risk Score:</span>
+                            <span class="value highlight-code"><code>{{ trigger.risk_score|default('N/A') }}</code></span>
+                        </div>
+                        <div class="overview-row">
+                            <span class="label">Flagged Txn ID:</span>
+                            <span class="value">
+                                <code>{{ trigger.flagged_txn_id|default(case.first_suspicious_txn_id|default(case.affected_txn_ids[0] if case.affected_txn_ids else 'N/A')) }}</code>
+                            </span>
+                        </div>
+                        <div class="overview-row">
+                            <span class="label">Associated Card ID:</span>
+                            <span class="value"><code>{{ trigger.card_id|default('N/A') }}</code></span>
+                        </div>
+                        <div class="overview-row">
+                            <span class="label">Associated Customer ID:</span>
+                            <span class="value"><code>{{ trigger.customer_id|default('N/A') }}</code></span>
+                        </div>
+                        <div class="overview-row trigger-text-row">
+                            <span class="label">Trigger Description:</span>
+                            <span class="value trigger-desc">{{ trigger.trigger_text|default('Transaction flagged for abnormal risk score or cardholder inquiry.') }}</span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Graph Neighborhood -->
+                <section class="card">
+                    <h3 class="card-header">🕸️ Entity Relationships & Graph Evidence</h3>
+                    <div class="overview-list">
+                        <div class="overview-row">
+                            <span class="label">Affected Transactions:</span>
+                            <span class="value">
+                                {% if case.affected_txn_ids %}
+                                    {% for t in case.affected_txn_ids %}<code>{{ t }}</code> {% endfor %}
+                                {% else %}
+                                    <em>None (Closed Legitimate)</em>
+                                {% endif %}
+                            </span>
+                        </div>
+                        <div class="overview-row">
+                            <span class="label">Connected Cards:</span>
+                            <span class="value">
+                                {% if case.connected_card_ids %}
+                                    {% for c in case.connected_card_ids %}<code>{{ c }}</code> {% endfor %}
+                                {% else %}
+                                    <em>No secondary cards compromised</em>
+                                {% endif %}
+                            </span>
+                        </div>
+                        <div class="overview-row">
+                            <span class="label">Device Profile(s):</span>
+                            <span class="value device-val">
+                                {% if case.connected_device_profiles %}
+                                    {% for d in case.connected_device_profiles %}<code>{{ d }}</code><br>{% endfor %}
+                                {% else %}
+                                    <em>None / In-Person Transaction</em>
+                                {% endif %}
+                            </span>
+                        </div>
+                        <div class="overview-row">
+                            <span class="label">Graph Precedents Retrieved:</span>
+                            <span class="value">
+                                {% if case.similar_prior_cases %}
+                                    {% for p in case.similar_prior_cases %}<span class="badge badge-memory">{{ p }}</span> {% endfor %}
+                                {% else %}
+                                    <em>No prior precedent cases matched</em>
+                                {% endif %}
+                            </span>
+                        </div>
+                        <div class="overview-row">
+                            <span class="label">Graph Case Memory ID:</span>
+                            <span class="value">
+                                {% if case.graph_case_id %}
+                                    <code>{{ case.graph_case_id }}</code>
+                                {% else %}
+                                    <em>Not persisted (legitimate / unwritten)</em>
+                                {% endif %}
+                            </span>
+                        </div>
+                        <div class="overview-row">
+                            <span class="label">Persisted to FraudNet:</span>
+                            <span class="value">
+                                {% if case.written_to_graph %}
+                                    <span class="badge badge-legit">TRUE (Written)</span>
+                                {% else %}
+                                    <span class="badge badge-neutral">FALSE</span>
+                                {% endif %}
+                            </span>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Evidence Section -->
+            <section class="section-container">
+                <h3 class="section-title">🔎 Evidence Gathered & Provenance Tracking</h3>
+                <p class="section-subtitle">Findings are grounded in live TigerGraph entity topology, regulatory policy, or explicit customer responses.</p>
+                
+                <div class="evidence-list">
+                    {% for ev in evidence_items %}
+                    <div class="evidence-card">
+                        <div class="evidence-header">
+                            <div class="evidence-meta">
+                                <span class="badge {{ ev.tag_class }}">{{ ev.tag_label }}</span>
+                                <span class="ref-text">ref: <code>{{ ev.ref }}</code></span>
+                            </div>
+                            <div class="evidence-entities">
+                                {% for eid in ev.entity_ids %}
+                                <span class="entity-tag">{{ eid }}</span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <div class="evidence-claim">
+                            {{ ev.claim }}
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="empty-notice">No explicit evidence records attached to this case.</div>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <!-- Uncertainty & Evidence Requests Grid -->
+            <div class="two-col-grid">
+                <!-- Uncertainty & Confidence -->
+                <section class="card">
+                    <h3 class="card-header">⚖️ Uncertainty & Decision Confidence</h3>
+                    <div class="card-content">
+                        <div class="overview-row">
+                            <span class="label">Assessed Fraud Probability:</span>
+                            <span class="value highlight-code">
+                                <strong>{{ ((case.fraud_probability|default(0.0)) * 100)|round(1) }}%</strong>
+                            </span>
+                        </div>
+                        <div class="overview-row">
+                            <span class="label">Investigation Stop Reason:</span>
+                            <span class="value"><code>{{ data.stop_reason|default('sufficient_evidence') }}</code></span>
+                        </div>
+                        <div class="resolution-box">
+                            <strong>Resolution Mechanism:</strong>
+                            <p>
+                                {% if data.stop_reason == 'customer_confirmed' %}
+                                    Cardholder verified legitimate authorization during customer validation loop. Risk score was a benign outlier.
+                                {% elif data.stop_reason == 'customer_denied' %}
+                                    Cardholder confirmed unauthorized charge during validation loop. Immediate card block mandated.
+                                {% else %}
+                                    Multi-hop graph evidence and typology precedent satisfied evidence sufficiency threshold without requiring secondary inquiries.
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Evidence Requests -->
+                <section class="card">
+                    <h3 class="card-header">📨 Structured Evidence Requests</h3>
+                    <div class="card-content">
+                        {% if evidence_requests %}
+                            {% for req in evidence_requests %}
+                            <div class="evidence-request-item">
+                                <div class="req-header">
+                                    <span class="req-tag">REQUEST: {{ req.type|upper }}</span>
+                                    <span class="req-step">Step {{ req.asked_after_step }}</span>
+                                </div>
+                                <div class="req-body">
+                                    <strong>Customer / Data Attestation:</strong>
+                                    <p>"{{ req.assumed_response }}"</p>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="empty-notice">
+                                No secondary evidence requests were raised. Evidence sufficiency was satisfied by graph neighborhood retrieval.
+                            </div>
+                        {% endif %}
+                    </div>
+                </section>
+            </div>
+
+            <!-- Recommended Next Actions -->
+            <section class="section-container">
+                <h3 class="section-title">🎯 Recommended Next Actions</h3>
+                <p class="section-subtitle">Enforced authoritatively by PolicyEngine with deterministic approval routes.</p>
+
+                <div class="two-col-grid">
+                    <!-- Initial Actions -->
+                    <div class="card">
+                        <h4 class="subcard-header">Initial Recommendations (Pre-Verification)</h4>
+                        <div class="actions-list">
+                            {% for act in next_best_actions.initial|default([]) %}
+                            <div class="action-item">
+                                <div class="action-top">
+                                    <span class="action-title">{{ act.action }}</span>
+                                    <span class="badge badge-route-{{ act.route|lower }}">ROUTE: {{ act.route|upper }}</span>
+                                </div>
+                                <div class="action-desc">{{ act.reason }}</div>
+                            </div>
+                            {% else %}
+                            <div class="empty-notice">No initial actions recorded.</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- Final Actions -->
+                    <div class="card">
+                        <h4 class="subcard-header">Final Enforced Actions (Post-Investigation)</h4>
+                        <div class="actions-list">
+                            {% for act in next_best_actions.final|default([]) %}
+                            <div class="action-item">
+                                <div class="action-top">
+                                    <span class="action-title">{{ act.action }}</span>
+                                    <span class="badge badge-route-{{ act.route|lower }}">ROUTE: {{ act.route|upper }}</span>
+                                </div>
+                                <div class="action-desc">{{ act.reason }}</div>
+                            </div>
+                            {% else %}
+                            <div class="empty-notice">No final actions recorded.</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+                {% if next_best_actions.what_changed %}
+                <div class="policy-transition-box">
+                    <strong>Policy Transition Narrative:</strong>
+                    <p>{{ next_best_actions.what_changed }}</p>
+                </div>
+                {% endif %}
+            </section>
+
+            <!-- SAR Section -->
+            <section class="section-container">
+                <h3 class="section-title">📑 Regulatory SAR & Case Report</h3>
+                {% if sar.file %}
+                <div class="sar-mandated-card">
+                    <div class="sar-badge-top">
+                        <span class="badge badge-fraud">🚨 STATUTORY SAR FILING MANDATED</span>
+                    </div>
+                    <div class="sar-meta-grid">
+                        <div>
+                            <span class="label">SAR Filing Reason:</span>
+                            <div class="value"><code>{{ sar.reason }}</code></div>
+                        </div>
+                        <div>
+                            <span class="label">Total SAR Exposure:</span>
+                            <div class="value highlight-code"><strong>${{ "{:,.2f}".format(sar.total_amount_usd|default(0.0)) }}</strong></div>
+                        </div>
+                        <div>
+                            <span class="label">Activity Dates:</span>
+                            <div class="value">
+                                {% for d in sar.activity_dates|default([]) %}<code>{{ d }}</code> {% endfor %}
+                            </div>
+                        </div>
+                        <div>
+                            <span class="label">Reported Subjects:</span>
+                            <div class="value">
+                                {% for s in sar.subjects|default([]) %}<span class="entity-tag">{{ s }}</span> {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="sar-narrative-container">
+                        <h5>Financial Crimes Enforcement Narrative:</h5>
+                        <div class="sar-narrative-text">{{ sar.narrative }}</div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="sar-clean-card">
+                    <span class="check-icon">✅</span>
+                    <div>
+                        <strong>No Statutory SAR Filing Required:</strong>
+                        <p>This investigation did not exceed mandatory regulatory filing thresholds under bank policy (exposure < $1,000 and legitimate disposition or low-tier single unauthorized charge).</p>
+                    </div>
+                </div>
+                {% endif %}
+            </section>
+
+            <!-- Technical Trace & Raw Data -->
+            <section class="section-container">
+                <details class="tech-details">
+                    <summary class="tech-summary">
+                        <span>⚙️ Technical Execution Trace & Raw Benchmark Record</span>
+                        <span class="toggle-icon">▼</span>
+                    </summary>
+                    <div class="tech-body">
+                        <div class="tech-metrics-bar">
+                            <div class="tech-metric">
+                                <span class="label">Graph Tool Calls</span>
+                                <span class="val">{{ data.tool_calls|default(0) }}</span>
+                            </div>
+                            <div class="tech-metric">
+                                <span class="label">LLM Tokens Used</span>
+                                <span class="val">{{ data.tokens|default(0) }}</span>
+                            </div>
+                            <div class="tech-metric">
+                                <span class="label">Execution Latency</span>
+                                <span class="val">{{ data.latency_s|round(2) if data.latency_s else 0.0 }}s</span>
+                            </div>
+                            <div class="tech-metric">
+                                <span class="label">Stop Reason</span>
+                                <span class="val"><code>{{ data.stop_reason|default('N/A') }}</code></span>
+                            </div>
+                        </div>
+
+                        <div class="raw-json-container">
+                            <div class="json-header">
+                                <span>Validated Raw JSON Result Record:</span>
+                                <button class="btn-copy" onclick="copyRawJson()">Copy JSON</button>
+                            </div>
+                            <pre id="raw-json-block"><code>{{ raw_json }}</code></pre>
+                        </div>
+                    </div>
+                </details>
+            </section>
+
+            <!-- Footer -->
+            <footer class="console-footer">
+                <p>TigerGraph Agentic Fraud Investigation • Hacker House Goa 2026 • Verified on TigerGraph FraudNet & Groq</p>
+            </footer>
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
