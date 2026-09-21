@@ -1,91 +1,44 @@
-# Comprehensive 20-Case Real Benchmark Evaluation Report
+# HHGOA 2026 — 20-Case Benchmark Report
 
-## 1. Executive Summary & Configuration
+## Execution Summary
 
-- **Evaluation Date**: 2026-09-20 19:11:40 UTC
-- **Graph Database**: `TIGERGRAPH` (Graph: `FraudNet`)
-- **Reasoning Provider**: `openai` (`openai/gpt-oss-20b`)
-- **GraphRAG Subsystem**: `ENABLED` (Authoritative policies + Graph Case Memory)
-- **Cases Completed**: **3 / 20**
-- **Schema & Integrity Validation Rate**: **3 / 3 (100%)**
-- **Total Benchmark Runtime**: **32.20s** (Avg: 6.39s / case)
+- Cases executed: 20/20
+- Backend: TigerGraph / FraudNet
+- LLM: Groq (`openai/gpt-oss-20b`) via OpenAI-compatible provider
+- GraphRAG: Enabled
+- Fraud verdicts: 18
+- Legitimate verdicts: 2
+- SAR-required cases: 0
+- Total LLM tokens: 13,511
+- Average workflow latency: 29.98s
 
----
+## Per-Case Results
 
-## 2. Benchmark Case Results Table
+| Case | Status | Verdict | Pattern | Exposure | SAR | Tokens | Latency |
+|---|---|---|---|---:|---|---:|---:|
+| HHG-001 | closed_legitimate | legitimate | none | $0.00 | False | 850 | 21.05s |
+| HHG-002 | closed_fraud | fraud | out_of_region_use | $292.36 | False | 754 | 19.11s |
+| HHG-003 | closed_fraud | fraud | undocumented | $49.00 | False | 747 | 26.18s |
+| HHG-004 | closed_fraud | fraud | undocumented | $128.33 | False | 814 | 21.06s |
+| HHG-005 | closed_fraud | fraud | undocumented | $100.07 | False | 613 | 22.25s |
+| HHG-006 | closed_fraud | fraud | undocumented | $482.12 | False | 605 | 20.74s |
+| HHG-007 | closed_fraud | fraud | out_of_region_use | $111.92 | False | 658 | 36.93s |
+| HHG-008 | closed_fraud | fraud | undocumented | $55.68 | False | 587 | 29.11s |
+| HHG-009 | closed_fraud | fraud | undocumented | $30.02 | False | 818 | 21.55s |
+| HHG-010 | closed_fraud | fraud | undocumented | $1000.03 | False | 584 | 19.37s |
+| HHG-011 | closed_fraud | fraud | undocumented | $131.30 | False | 572 | 81.76s |
+| HHG-012 | closed_legitimate | legitimate | none | $0.00 | False | 814 | 25.45s |
+| HHG-013 | closed_fraud | fraud | undocumented | $35.66 | False | 610 | 28.81s |
+| HHG-014 | closed_fraud | fraud | undocumented | $74.96 | False | 809 | 22.89s |
+| HHG-015 | closed_fraud | fraud | out_of_region_use | $599.94 | False | 638 | 23.34s |
+| HHG-016 | closed_fraud | fraud | undocumented | $59.67 | False | 599 | 19.49s |
+| HHG-017 | closed_fraud | fraud | undocumented | $100.09 | False | 583 | 20.29s |
+| HHG-018 | closed_fraud | fraud | undocumented | $39.08 | False | 726 | 95.01s |
+| HHG-019 | closed_fraud | fraud | out_of_region_use | $99.92 | False | 565 | 20.77s |
+| HHG-020 | closed_fraud | fraud | undocumented | $125.08 | False | 565 | 24.43s |
 
-| Case | Verdict | Pattern | Fraud Probability | Exposure | SAR | Final Actions | Evidence Requested | Tool Calls | Latency | Validation |
-|---|---|---|---|---|---|---|---|---|---|---|
-| `HHG-002` | **FRAUD** | `out_of_region_use` | 0.99 | $292.36 | False | BLOCK_CARD, CREATE_CASE | 1 req | 5 | 8.64s | PASS |
-| `HHG-003` | **FRAUD** | `undocumented` | 0.90 | $49.00 | False | CREATE_CASE | 0 req | 5 | 5.49s | PASS |
-| `HHG-004` | **FRAUD** | `undocumented` | 0.90 | $128.33 | False | CREATE_CASE | 0 req | 6 | 5.03s | PASS |
+## Notes
 
----
-
-## 3. Aggregate Engineering Metrics
-
-- **Total Cases Attempted**: 3
-- **Total Successfully Processed**: 3
-- **Validation Success Count**: 3
-- **Failures**: 0
-- **Latency Statistics**:
-  - Average Latency: `6.39s`
-  - Median Latency: `5.49s`
-  - Min Latency: `5.033s`
-  - Max Latency: `8.636s`
-- **Token & LLM Usage**:
-  - Total Tokens Tracked: `800`
-  - Average Tokens / Case: `266.7`
-- **Graph Operations**:
-  - Total Graph Tool Invocations: `16`
-  - Average Graph Calls / Case: `5.3`
-
----
-
-## 4. Policy Engine Authority & Statutory Control Audit
-
-The deterministic `PolicyEngine` enforces Rules R1 through R10 over all LLM proposals. Discrepancies and overrides are audited below:
-
-> [!NOTE]
-> All LLM reasoning proposals fully aligned with statutory policy rules or non-conforming suggestions were safely governed by PolicyEngine authority.
-
----
-
-## 5. Failure Triage & Classification
-
-> [!TIP]
-> Zero failures recorded. All attempted cases completed end-to-end.
-
----
-
-## 6. Case-by-Case Factual Investigation Summaries
-
-### `HHG-002` (risk_score)
-- **Verdict**: `fraud` | **Pattern**: `out_of_region_use` | **Fraud Probability**: `0.99`
-- **Exposure**: `$292.36` | **SAR Filed**: `False`
-- **Initial Assessment**: Verdict `fraud`, Pattern `out_of_region_use`
-- **Final Assessment**: Verdict `fraud`, Pattern `out_of_region_use`
-- **GraphRAG Citations**: Retrieved Policies: `[POLICY-NEXT-BEST-ACTION, POLICY-ACTIONS, POLICY-R6]`, Historical Precedents: `1`
-- **Final Actions**: `['BLOCK_CARD', 'CREATE_CASE']`
-- **Stop Reason**: `customer_denied`
-- **Graph Persistence**: Written=`True` (Graph Case ID: `HHG-002`)
-
-### `HHG-003` (customer_report)
-- **Verdict**: `fraud` | **Pattern**: `undocumented` | **Fraud Probability**: `0.90`
-- **Exposure**: `$49.00` | **SAR Filed**: `False`
-- **Initial Assessment**: Verdict `fraud`, Pattern `unauthorized_transaction`
-- **Final Assessment**: Verdict `fraud`, Pattern `undocumented`
-- **GraphRAG Citations**: Retrieved Policies: `[POLICY-R2, POLICY-ACTIONS, POLICY-R5]`, Historical Precedents: `5`
-- **Final Actions**: `['CREATE_CASE']`
-- **Stop Reason**: `sufficient_evidence`
-- **Graph Persistence**: Written=`True` (Graph Case ID: `HHG-003`)
-
-### `HHG-004` (customer_report)
-- **Verdict**: `fraud` | **Pattern**: `undocumented` | **Fraud Probability**: `0.90`
-- **Exposure**: `$128.33` | **SAR Filed**: `False`
-- **Initial Assessment**: Verdict `fraud`, Pattern `unauthorized_transaction`
-- **Final Assessment**: Verdict `fraud`, Pattern `undocumented`
-- **GraphRAG Citations**: Retrieved Policies: `[POLICY-R2, POLICY-ACTIONS, POLICY-R5]`, Historical Precedents: `0`
-- **Final Actions**: `['CREATE_CASE']`
-- **Stop Reason**: `sufficient_evidence`
-- **Graph Persistence**: Written=`True` (Graph Case ID: `HHG-004`)
+- Results are generated from the individually executed case JSON artifacts.
+- The earlier rate-limited batch run is not used as the authoritative result set.
+- The final result set contains 20 individually executed cases.
