@@ -13,7 +13,7 @@
             <div class="sidebar-brand">
                 <div class="brand-logo">🛡️</div>
                 <div class="brand-text">
-                    <h2>Fraud Console</h2>
+                    <h2>FraudNet Console</h2>
                     <span>TigerGraph • Groq • GraphRAG</span>
                 </div>
             </div>
@@ -50,7 +50,7 @@
 
             <!-- Case Quick List -->
             <div class="sidebar-section">
-                <div class="sidebar-label">Benchmark Suite Index ({{ cases|length }}/20)</div>
+                <div class="sidebar-label">Benchmark Suite ({{ cases|length }}/20) <a href="{{ url_for('benchmark') }}" class="bench-link">📊 Dashboard</a></div>
                 <div class="case-quick-list">
                     {% for c in cases %}
                     <a href="{{ url_for('view_case', case_id=c) }}" class="case-quick-item {% if c == case_id %}active{% endif %}">
@@ -64,9 +64,10 @@
             <!-- Benchmark Info -->
             <div class="sidebar-footer">
                 <div class="spec-row"><span>Backend:</span><strong>TigerGraph FraudNet</strong></div>
-                <div class="spec-row"><span>Reasoning:</span><strong>Groq gpt-oss-20b</strong></div>
+                <div class="spec-row"><span>Reasoning:</span><strong>Groq LLM</strong></div>
                 <div class="spec-row"><span>Policy:</span><strong>Deterministic Matrix</strong></div>
-                <div class="spec-row"><span>Validation:</span><strong>20/20 Passed</strong></div>
+                <div class="spec-row"><span>Tests:</span><strong>126 Passing</strong></div>
+                <div class="spec-row"><span>Results:</span><strong>20/20 Saved</strong></div>
             </div>
         </aside>
 
@@ -76,11 +77,16 @@
             <header class="console-header">
                 <div class="header-titles">
                     <h1>TigerGraph Agentic Fraud Investigation</h1>
-                    <p class="subtitle">Graph-powered investigation console • Groq reasoning • TigerGraph evidence</p>
+                    <p class="subtitle">Graph-powered investigation control room • Groq reasoning • TigerGraph evidence</p>
                 </div>
-                <div class="replay-badge">
-                    <span class="pulse-icon">●</span>
-                    <span>Replay Mode — validated benchmark investigation</span>
+                <div style="display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap;">
+                    {% if is_hero_case %}
+                    <div class="hero-badge">⭐ {{ hero_label }}</div>
+                    {% endif %}
+                    <div class="replay-badge">
+                        <span class="pulse-icon">●</span>
+                        <span>Replay Mode — validated benchmark investigation</span>
+                    </div>
                 </div>
             </header>
 
@@ -143,58 +149,63 @@
                 </div>
             </section>
 
-            <!-- Lifecycle Progression -->
+            <!-- ═══════════════════════════════════════════════════════════════ -->
+            <!-- P0: INTERACTIVE TIGERGRAPH EVIDENCE GRAPH                      -->
+            <!-- ═══════════════════════════════════════════════════════════════ -->
             <section class="section-container">
-                <h3 class="section-title">🔄 Investigation Lifecycle Progression</h3>
-                <div class="lifecycle-track">
-                    <div class="lifecycle-step step-complete">
-                        <div class="step-num">1</div>
-                        <div class="step-content">
-                            <h4>Case Trigger</h4>
-                            <p>{{ trigger.trigger_type|default('Risk Model Anomaly') }}</p>
+                <h3 class="section-title">🕸️ Interactive TigerGraph Evidence Graph</h3>
+                <p class="section-subtitle">
+                    Force-directed entity graph derived from actual TigerGraph evidence records.
+                    Nodes represent real entities from the investigation; edges show evidence relationships.
+                    Click any node to highlight its associated evidence.
+                </p>
+                <div class="graph-legend">
+                    <span class="graph-legend-item"><span class="gn-dot gn-transaction"></span> Transaction</span>
+                    <span class="graph-legend-item"><span class="gn-dot gn-card"></span> Card</span>
+                    <span class="graph-legend-item"><span class="gn-dot gn-customer"></span> Customer</span>
+                    <span class="graph-legend-item"><span class="gn-dot gn-device"></span> Device Profile</span>
+                    <span class="graph-legend-item"><span class="gn-dot gn-closed_case"></span> Closed Case</span>
+                    <span class="graph-legend-item"><span class="gn-dot gn-inference"></span> Inference</span>
+                </div>
+                <div class="graph-container" id="graph-container">
+                    <svg id="evidence-graph"></svg>
+                    <div class="graph-tooltip" id="graph-tooltip"></div>
+                    <div class="graph-loading" id="graph-loading">Loading graph data…</div>
+                </div>
+                <div class="graph-source-note">
+                    ⓘ Graph built from <code>evidence[].entity_ids</code> fields in stored benchmark result.
+                    All nodes/edges are grounded in actual TigerGraph evidence records.
+                </div>
+            </section>
+
+            <!-- ═══════════════════════════════════════════════════════════════ -->
+            <!-- P0: REAL AGENT ACTIVITY TRACE (Reconstructed)                  -->
+            <!-- ═══════════════════════════════════════════════════════════════ -->
+            <section class="section-container">
+                <h3 class="section-title">📡 Agent Activity Trace</h3>
+                <p class="section-subtitle">
+                    Reconstructed from ordered evidence records. The live <code>investigation_timeline</code>
+                    is populated during execution but not serialized to saved results.
+                    Each step corresponds to one tool call or lifecycle event.
+                    Customer response steps are <strong>[SIMULATION]</strong> — assumed_response from saved data.
+                </p>
+                <div class="activity-trace">
+                    {% for step in agent_trace %}
+                    <div class="trace-step trace-{{ step.category }}" data-step="{{ step.step }}">
+                        <div class="trace-icon">{{ step.icon }}</div>
+                        <div class="trace-connector"></div>
+                        <div class="trace-content">
+                            <div class="trace-header">
+                                <span class="trace-num">Step {{ step.step }}</span>
+                                <span class="trace-stage">{{ step.stage }}</span>
+                                <span class="trace-system">{{ step.system }}</span>
+                                <span class="trace-result trace-result-{{ step.result|lower }}">{{ step.result }}</span>
+                            </div>
+                            <div class="trace-desc">{{ step.description }}</div>
+                            <div class="trace-tool"><code>{{ step.tool }}</code></div>
                         </div>
                     </div>
-                    <div class="lifecycle-step step-complete">
-                        <div class="step-num">2</div>
-                        <div class="step-content">
-                            <h4>Graph Context</h4>
-                            <p>{{ data.tool_calls|default(0) }} Graph operations executed</p>
-                        </div>
-                    </div>
-                    <div class="lifecycle-step step-complete">
-                        <div class="step-num">3</div>
-                        <div class="step-content">
-                            <h4>GraphRAG Retrieval</h4>
-                            <p>{{ case.similar_prior_cases|length|default(0) }} Precedent case(s) retrieved</p>
-                        </div>
-                    </div>
-                    <div class="lifecycle-step {% if evidence_requests|length > 0 %}step-complete{% else %}step-skipped{% endif %}">
-                        <div class="step-num">4</div>
-                        <div class="step-content">
-                            <h4>Uncertainty & Loops</h4>
-                            <p>
-                                {% if evidence_requests|length > 0 %}
-                                    {{ evidence_requests|length }} Evidence request(s) raised
-                                {% else %}
-                                    Evidence sufficient (no request)
-                                {% endif %}
-                            </p>
-                        </div>
-                    </div>
-                    <div class="lifecycle-step step-complete">
-                        <div class="step-num">5</div>
-                        <div class="step-content">
-                            <h4>Deterministic Policy</h4>
-                            <p>Stop reason: '{{ data.stop_reason|default('completed') }}'</p>
-                        </div>
-                    </div>
-                    <div class="lifecycle-step step-complete">
-                        <div class="step-num">6</div>
-                        <div class="step-content">
-                            <h4>Case Disposition</h4>
-                            <p>Verdict: {{ case.verdict|upper }} • In Graph: {{ case.written_to_graph|default(false) }}</p>
-                        </div>
-                    </div>
+                    {% endfor %}
                 </div>
             </section>
 
@@ -239,7 +250,7 @@
 
                 <!-- Graph Neighborhood -->
                 <section class="card">
-                    <h3 class="card-header">🕸️ Entity Relationships & Graph Evidence</h3>
+                    <h3 class="card-header">🗂️ Entity Relationships & Graph Evidence</h3>
                     <div class="overview-list">
                         <div class="overview-row">
                             <span class="label">Affected Transactions:</span>
@@ -305,14 +316,289 @@
                 </section>
             </div>
 
+            <!-- ═══════════════════════════════════════════════════════════════ -->
+            <!-- P0: UNCERTAINTY & CONFIDENCE PANEL                             -->
+            <!-- ═══════════════════════════════════════════════════════════════ -->
+            <section class="section-container">
+                <h3 class="section-title">⚖️ Uncertainty & Decision Confidence</h3>
+                <div class="two-col-grid">
+                    <!-- Uncertainty Assessment -->
+                    <div class="card">
+                        <h4 class="subcard-header">Uncertainty Assessment</h4>
+                        <div class="card-content">
+                            <div class="uncertainty-level-row">
+                                <div class="unc-level-badge unc-{{ uncertainty.uncertainty_color }}">
+                                    {{ uncertainty.uncertainty_level }} UNCERTAINTY
+                                </div>
+                                <div class="unc-desc">{{ uncertainty.uncertainty_desc }}</div>
+                            </div>
+                            <div class="overview-row">
+                                <span class="label">Fraud Probability:</span>
+                                <span class="value">
+                                    <strong>{{ uncertainty.fraud_probability_pct }}%</strong>
+                                </span>
+                            </div>
+                            <div class="prob-bar-container">
+                                <div class="prob-bar" style="width: {{ uncertainty.fraud_probability_pct }}%; background: {% if uncertainty.fraud_probability_pct > 70 %}var(--danger-red){% elif uncertainty.fraud_probability_pct > 40 %}var(--warning-amber){% else %}var(--success-green){% endif %};"></div>
+                            </div>
+                            <div class="overview-row">
+                                <span class="label">Stop Reason:</span>
+                                <span class="value"><code>{{ uncertainty.stop_reason }}</code></span>
+                            </div>
+                            <div class="overview-row">
+                                <span class="label">Evidence Request Loops:</span>
+                                <span class="value">{{ uncertainty.evidence_loops }}</span>
+                            </div>
+                            <div class="overview-row">
+                                <span class="label">Verdict Changed by Loop:</span>
+                                <span class="value">
+                                    {% if uncertainty.verdict_changed_by_loop %}
+                                        <span class="badge badge-fraud">YES — Evidence Loop Pivoted Verdict</span>
+                                    {% else %}
+                                        <span class="badge badge-neutral">No change</span>
+                                    {% endif %}
+                                </span>
+                            </div>
+                            <div class="overview-row">
+                                <span class="label">Missing Evidence:</span>
+                                <span class="value muted-note">{{ uncertainty.missing_evidence_note }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Initial → Final Assessment Delta -->
+                    <div class="card">
+                        <h4 class="subcard-header">Initial → Final Assessment Delta</h4>
+                        <div class="card-content">
+                            {% if uncertainty.evidence_loops > 0 %}
+                            <div class="delta-flow">
+                                <div class="delta-box delta-initial">
+                                    <div class="delta-label">Initial Actions (Pre-Verification)</div>
+                                    {% for a in uncertainty.initial_action_names %}
+                                    <div class="delta-action">{{ a }}</div>
+                                    {% endfor %}
+                                </div>
+                                <div class="delta-arrow">
+                                    <span>📨 Evidence Request</span>
+                                    <span>+ Customer Response</span>
+                                    <span>⬇️</span>
+                                </div>
+                                <div class="delta-box delta-final">
+                                    <div class="delta-label">Final Actions (Post-Verification)</div>
+                                    {% for a in uncertainty.final_action_names %}
+                                    <div class="delta-action">{{ a }}</div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% if uncertainty.what_changed %}
+                            <div class="policy-transition-box" style="margin-top:12px;">
+                                <strong>What changed:</strong>
+                                <p>{{ uncertainty.what_changed }}</p>
+                            </div>
+                            {% endif %}
+                            {% else %}
+                            <div class="delta-flow">
+                                <div class="delta-box delta-final">
+                                    <div class="delta-label">Actions (No Evidence Loop Required)</div>
+                                    {% for a in uncertainty.final_action_names %}
+                                    <div class="delta-action">{{ a }}</div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            <div class="empty-notice" style="margin-top:10px;">
+                                Investigation evidence was sufficient without a secondary evidence request.
+                                Initial and final actions are identical.
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ═══════════════════════════════════════════════════════════════ -->
+            <!-- P0: EVIDENCE REQUEST → RESPONSE → REASSESSMENT FLOW            -->
+            <!-- ═══════════════════════════════════════════════════════════════ -->
+            <section class="section-container">
+                <h3 class="section-title">📨 Evidence Request → Response → Reassessment</h3>
+                {% if evidence_requests %}
+                <p class="section-subtitle">
+                    The agent identified uncertainty and issued a structured evidence request.
+                    Customer responses are marked <strong>[SIMULATION]</strong> — these are
+                    the <code>assumed_response</code> values stored in the benchmark result.
+                </p>
+                {% for req in evidence_requests %}
+                <div class="evidence-flow-card">
+                    <div class="ev-flow-step ev-flow-request">
+                        <div class="ev-flow-icon">📤</div>
+                        <div class="ev-flow-content">
+                            <div class="ev-flow-label">EVIDENCE REQUEST</div>
+                            <div class="ev-flow-type">Type: <strong>{{ req.type|upper }}</strong></div>
+                            <div class="ev-flow-detail">Raised after step {{ req.asked_after_step }} of investigation.</div>
+                        </div>
+                    </div>
+                    <div class="ev-flow-connector">→</div>
+                    <div class="ev-flow-step ev-flow-response">
+                        <div class="ev-flow-icon">📥</div>
+                        <div class="ev-flow-content">
+                            <div class="ev-flow-label">CUSTOMER RESPONSE <span class="sim-label">[SIMULATION]</span></div>
+                            <div class="ev-flow-quote">"{{ req.assumed_response }}"</div>
+                            <div class="ev-flow-detail">assumed_response from benchmark result — not a real customer reply.</div>
+                        </div>
+                    </div>
+                    <div class="ev-flow-connector">→</div>
+                    <div class="ev-flow-step ev-flow-reassess">
+                        <div class="ev-flow-icon">🔄</div>
+                        <div class="ev-flow-content">
+                            <div class="ev-flow-label">REASSESSMENT</div>
+                            {% if next_best_actions.what_changed %}
+                            <div class="ev-flow-detail">{{ next_best_actions.what_changed }}</div>
+                            {% else %}
+                            <div class="ev-flow-detail">Verdict reassessed based on customer response. Final actions updated.</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <p class="section-subtitle">No evidence request loop was triggered for this case.</p>
+                <div class="empty-notice">
+                    Graph evidence was sufficient to reach a verdict without requiring external customer verification.
+                    The agent's stop reason was: <code>{{ data.stop_reason }}</code>
+                </div>
+                {% endif %}
+            </section>
+
+            <!-- ═══════════════════════════════════════════════════════════════ -->
+            <!-- P0: VISIBLE POLICYENGINE GATE                                  -->
+            <!-- ═══════════════════════════════════════════════════════════════ -->
+            <section class="section-container">
+                <h3 class="section-title">⚖️ PolicyEngine Gate</h3>
+                <p class="section-subtitle">
+                    Deterministic PolicyEngine enforces Fraud Policy v1.0 (Rules R1–R10).
+                    LLM reasoning <em>recommends</em> actions; PolicyEngine is the <em>sole authority</em>.
+                </p>
+
+                <div class="policy-gate-flow">
+                    <!-- Step 1: LLM Recommendation -->
+                    <div class="pg-step pg-llm">
+                        <div class="pg-step-header">
+                            <span class="pg-step-icon">🧠</span>
+                            <span class="pg-step-label">LLM Recommendation</span>
+                        </div>
+                        <div class="pg-step-body">
+                            {% for act in policy_gate.llm_initial_actions %}
+                            <div class="pg-action-item">
+                                <span class="pg-action-name">{{ act.action }}</span>
+                                <span class="badge badge-route-{{ act.route|lower }}">{{ act.route|upper }}</span>
+                            </div>
+                            {% else %}
+                            <div class="muted-note">Initial actions match final (no evidence loop).</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="pg-arrow">→</div>
+
+                    <!-- Step 2: PolicyEngine Evaluation -->
+                    <div class="pg-step pg-engine">
+                        <div class="pg-step-header">
+                            <span class="pg-step-icon">⚙️</span>
+                            <span class="pg-step-label">PolicyEngine Evaluation</span>
+                        </div>
+                        <div class="pg-step-body">
+                            <div class="pg-rules-section">
+                                <div class="pg-rules-label">Policy Rules Referenced (Extracted from Evidence):</div>
+                                {% if policy_gate.policy_rules_triggered %}
+                                <div class="pg-rules-list">
+                                    {% for rule in policy_gate.policy_rules_triggered %}
+                                    <span class="pg-rule-badge">{{ rule }}</span>
+                                    {% endfor %}
+                                </div>
+                                {% else %}
+                                <div class="muted-note">No explicit POLICY-Rx refs in evidence for this case.</div>
+                                {% endif %}
+                                <div class="pg-rules-source">{{ policy_gate.policy_rules_source }}</div>
+                            </div>
+                            <div class="pg-sar-row">
+                                <span>SAR Filing:</span>
+                                {% if policy_gate.sar_required %}
+                                <span class="badge badge-fraud">REQUIRED — {{ policy_gate.sar_reason }}</span>
+                                {% else %}
+                                <span class="badge badge-neutral">NOT REQUIRED</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pg-arrow">→</div>
+
+                    <!-- Step 3: Final Enforced Actions -->
+                    <div class="pg-step pg-enforced">
+                        <div class="pg-step-header">
+                            <span class="pg-step-icon">✅</span>
+                            <span class="pg-step-label">Final Enforced Actions</span>
+                        </div>
+                        <div class="pg-step-body">
+                            <div class="pg-outcome pg-outcome-{{ policy_gate.gate_color }}">
+                                {{ policy_gate.gate_outcome }}
+                            </div>
+                            {% for act in policy_gate.final_actions %}
+                            <div class="pg-action-item">
+                                <span class="pg-action-name">{{ act.action }}</span>
+                                <span class="badge badge-route-{{ act.route|lower }}">{{ act.route|upper }}</span>
+                            </div>
+                            {% else %}
+                            <div class="muted-note">No final actions recorded.</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+                {% if policy_gate.what_changed %}
+                <div class="policy-transition-box" style="margin-top:16px;">
+                    <strong>Policy Transition Narrative:</strong>
+                    <p>{{ policy_gate.what_changed }}</p>
+                </div>
+                {% endif %}
+            </section>
+
+            <!-- ═══════════════════════════════════════════════════════════════ -->
+            <!-- P0: CASE TIMELINE                                               -->
+            <!-- ═══════════════════════════════════════════════════════════════ -->
+            <section class="section-container">
+                <h3 class="section-title">🕐 Case Timeline</h3>
+                <p class="section-subtitle">
+                    Step-by-step lifecycle derived from ordered evidence records.
+                    Timestamps not available in saved results — sequence reflects actual tool call order.
+                </p>
+                <div class="timeline-track">
+                    {% for step in agent_trace %}
+                    <div class="timeline-item tl-{{ step.category }}">
+                        <div class="tl-marker">
+                            <div class="tl-icon">{{ step.icon }}</div>
+                            {% if not loop.last %}<div class="tl-line"></div>{% endif %}
+                        </div>
+                        <div class="tl-content">
+                            <div class="tl-header">
+                                <span class="tl-step">Step {{ step.step }}</span>
+                                <span class="tl-stage">{{ step.stage }}</span>
+                                <span class="tl-system">via {{ step.system }}</span>
+                            </div>
+                            <div class="tl-desc">{{ step.description }}</div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </section>
+
             <!-- Evidence Section -->
             <section class="section-container">
                 <h3 class="section-title">🔎 Evidence Gathered & Provenance Tracking</h3>
                 <p class="section-subtitle">Findings are grounded in live TigerGraph entity topology, regulatory policy, or explicit customer responses.</p>
-                
+
                 <div class="evidence-list">
                     {% for ev in evidence_items %}
-                    <div class="evidence-card">
+                    <div class="evidence-card" id="ev-{{ loop.index0 }}">
                         <div class="evidence-header">
                             <div class="evidence-meta">
                                 <span class="badge {{ ev.tag_class }}">{{ ev.tag_label }}</span>
@@ -320,7 +606,7 @@
                             </div>
                             <div class="evidence-entities">
                                 {% for eid in ev.entity_ids %}
-                                <span class="entity-tag">{{ eid }}</span>
+                                <span class="entity-tag" data-entity="{{ eid }}">{{ eid }}</span>
                                 {% endfor %}
                             </div>
                         </div>
@@ -334,62 +620,33 @@
                 </div>
             </section>
 
-            <!-- Uncertainty & Evidence Requests Grid -->
-            <div class="two-col-grid">
-                <!-- Uncertainty & Confidence -->
-                <section class="card">
-                    <h3 class="card-header">⚖️ Uncertainty & Decision Confidence</h3>
-                    <div class="card-content">
-                        <div class="overview-row">
-                            <span class="label">Assessed Fraud Probability:</span>
-                            <span class="value highlight-code">
-                                <strong>{{ ((case.fraud_probability|default(0.0)) * 100)|round(1) }}%</strong>
-                            </span>
-                        </div>
-                        <div class="overview-row">
-                            <span class="label">Investigation Stop Reason:</span>
-                            <span class="value"><code>{{ data.stop_reason|default('sufficient_evidence') }}</code></span>
-                        </div>
-                        <div class="resolution-box">
-                            <strong>Resolution Mechanism:</strong>
-                            <p>
-                                {% if data.stop_reason == 'customer_confirmed' %}
-                                    Cardholder verified legitimate authorization during customer validation loop. Risk score was a benign outlier.
-                                {% elif data.stop_reason == 'customer_denied' %}
-                                    Cardholder confirmed unauthorized charge during validation loop. Immediate card block mandated.
-                                {% else %}
-                                    Multi-hop graph evidence and typology precedent satisfied evidence sufficiency threshold without requiring secondary inquiries.
-                                {% endif %}
-                            </p>
-                        </div>
+            <!-- ═══════════════════════════════════════════════════════════════ -->
+            <!-- P1: CASE MEMORY VISUALIZATION                                   -->
+            <!-- ═══════════════════════════════════════════════════════════════ -->
+            {% if case.similar_prior_cases %}
+            <section class="section-container">
+                <h3 class="section-title">🗂️ GraphRAG Case Memory</h3>
+                <p class="section-subtitle">
+                    The GraphRAG context builder retrieved these closed cases from TigerGraph FraudNet.
+                    They informed the LLM's reasoning as historical precedent.
+                    Case contents are not available in the saved results — only IDs were serialized.
+                </p>
+                <div class="case-memory-grid">
+                    {% for pc in case.similar_prior_cases %}
+                    <div class="case-memory-card">
+                        <div class="cm-icon">🗂️</div>
+                        <div class="cm-id">{{ pc }}</div>
+                        <div class="cm-label">Closed Historical Case</div>
+                        <div class="cm-detail">Retrieved via <code>get_similar_closed_cases</code></div>
                     </div>
-                </section>
-
-                <!-- Evidence Requests -->
-                <section class="card">
-                    <h3 class="card-header">📨 Structured Evidence Requests</h3>
-                    <div class="card-content">
-                        {% if evidence_requests %}
-                            {% for req in evidence_requests %}
-                            <div class="evidence-request-item">
-                                <div class="req-header">
-                                    <span class="req-tag">REQUEST: {{ req.type|upper }}</span>
-                                    <span class="req-step">Step {{ req.asked_after_step }}</span>
-                                </div>
-                                <div class="req-body">
-                                    <strong>Customer / Data Attestation:</strong>
-                                    <p>"{{ req.assumed_response }}"</p>
-                                </div>
-                            </div>
-                            {% endfor %}
-                        {% else %}
-                            <div class="empty-notice">
-                                No secondary evidence requests were raised. Evidence sufficiency was satisfied by graph neighborhood retrieval.
-                            </div>
-                        {% endif %}
-                    </div>
-                </section>
-            </div>
+                    {% endfor %}
+                </div>
+                <div class="graph-source-note">
+                    ⓘ GraphRAG retrieved {{ case.similar_prior_cases|length }} precedent case(s) from TigerGraph closed_cases_history.
+                    Full case details are in the graph but not serialized to saved benchmark results.
+                </div>
+            </section>
+            {% endif %}
 
             <!-- Recommended Next Actions -->
             <section class="section-container">
@@ -533,6 +790,12 @@
         </main>
     </div>
 
+    <!-- D3.js via CDN (no npm required) -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
     <script src="{{ url_for('static', filename='app.js') }}"></script>
+    <script>
+        // Initialize D3 graph for this case
+        initEvidenceGraph("{{ case_id }}");
+    </script>
 </body>
 </html>
