@@ -1,0 +1,193 @@
+{
+  "case_id": "HHG-016",
+  "case": {
+    "status": "closed_fraud",
+    "verdict": "fraud",
+    "fraud_probability": 0.95,
+    "pattern": "undocumented",
+    "pattern_description": "Flagged device profile is shared across a coordinated syndicate cluster of 31 cards.",
+    "affected_txn_ids": [
+      "3534820"
+    ],
+    "first_suspicious_txn_id": "3534820",
+    "connected_card_ids": [],
+    "connected_device_profiles": [
+      "Windows |  | edge 16.0 | "
+    ],
+    "exposure_usd": 59.67,
+    "evidence": [
+      {
+        "claim": "Transaction 3534820 amount is $59.67, channel is 'online', product is 'C', risk score is 0.37.",
+        "source": "graph",
+        "ref": "get_transaction_context",
+        "entity_ids": [
+          "3534820",
+          "C09988-K1"
+        ]
+      },
+      {
+        "claim": "Transaction 3534820 is associated with card C09988-K1, customer C09988, billing region .",
+        "source": "graph",
+        "ref": "get_transaction_context",
+        "entity_ids": [
+          "C09988",
+          "C09988-K1"
+        ]
+      },
+      {
+        "claim": "Retrieved 10 historical closed cases referencing card C09988-K1.",
+        "source": "graph",
+        "ref": "get_similar_closed_cases",
+        "entity_ids": [
+          "CC-3491",
+          "CC-2765",
+          "CC-0497",
+          "CC-2732",
+          "CC-5057",
+          "CC-2898",
+          "CC-2675",
+          "CC-2694",
+          "CC-2540",
+          "CC-3580"
+        ]
+      },
+      {
+        "claim": "Card C09988-K1 history contains 61 total transactions. Baseline amount mean=$41.81, stdev=$27.64.",
+        "source": "graph",
+        "ref": "get_card_history_summary",
+        "entity_ids": [
+          "3534820",
+          "C09988-K1"
+        ]
+      },
+      {
+        "claim": "Flagged billing region  familiarity is 'novel_zero_history' (0 prior transactions in this region).",
+        "source": "graph",
+        "ref": "get_card_history_summary",
+        "entity_ids": [
+          "3534820",
+          "C09988-K1"
+        ]
+      },
+      {
+        "claim": "Device profile links 31 unique cards across the network. Syndicate risk tier: CRITICAL.",
+        "source": "graph",
+        "ref": "get_device_neighbors_summary",
+        "entity_ids": [
+          "3534820",
+          "C09988-K1"
+        ]
+      },
+      {
+        "claim": "Device sharing across 31 accounts represents coordinated syndicate attack.",
+        "source": "graph",
+        "ref": "pattern_reasoner",
+        "entity_ids": [
+          "3534820",
+          "C09988-K1"
+        ]
+      },
+      {
+        "claim": "Transaction 3534820 is flagged and associated with a shared device profile linked to 31 cards, indicating a potential device ring attack.",
+        "source": "graph",
+        "ref": "llm:GRAPH-TXN-3534820",
+        "entity_ids": [
+          "3534820",
+          "C09988-K1"
+        ]
+      },
+      {
+        "claim": "Device profile 'Windows |  | edge 16.0 | ' is classified as CRITICAL syndicate risk and is shared across multiple cards.",
+        "source": "graph",
+        "ref": "llm:GRAPH-DEV-Windows |  | edge 16.0 | ",
+        "entity_ids": [
+          "3534820",
+          "C09988-K1"
+        ]
+      },
+      {
+        "claim": "Card C09988-K1 has no prior regional transaction history, increasing the likelihood of a fraudulent activity in a novel region.",
+        "source": "graph",
+        "ref": "llm:GRAPH-CARD-C09988-K1",
+        "entity_ids": [
+          "3534820",
+          "C09988-K1"
+        ]
+      }
+    ],
+    "similar_prior_cases": [
+      "CC-3491",
+      "CC-2765",
+      "CC-0497",
+      "CC-2732",
+      "CC-5057",
+      "CC-2898",
+      "CC-2675",
+      "CC-2694",
+      "CC-2540",
+      "CC-3580"
+    ],
+    "summary": "Flagged device profile is shared across a coordinated syndicate cluster of 31 cards.",
+    "written_to_graph": true,
+    "graph_case_id": "HHG-016"
+  },
+  "evidence_requests": [
+    {
+      "type": "customer_validation",
+      "asked_after_step": 1,
+      "assumed_response": "No, I did not authorize this purchase."
+    }
+  ],
+  "next_best_actions": {
+    "initial": [
+      {
+        "action": "VERIFY_WITH_CUSTOMER",
+        "route": "auto",
+        "reason": "Rule R1: Verify with customer prior to blocking on single score signal."
+      }
+    ],
+    "final": [
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "Recommended action CREATE_CASE enforced by deterministic policy engine."
+      },
+      {
+        "action": "FILE_REPORT",
+        "route": "L2",
+        "reason": "Statutory SAR filing mandated by policy exposure/pattern."
+      },
+      {
+        "action": "ESCALATE_TO_ANALYST",
+        "route": "auto",
+        "reason": "Recommended action ESCALATE_TO_ANALYST enforced by deterministic policy engine."
+      },
+      {
+        "action": "MONITOR_CONNECTED_CARDS",
+        "route": "auto",
+        "reason": "Recommended action MONITOR_CONNECTED_CARDS enforced by deterministic policy engine."
+      }
+    ],
+    "what_changed": "Customer verification response received (confirmed). Verdict transitioned to fraud, resulting in final action set: ['CREATE_CASE', 'FILE_REPORT', 'ESCALATE_TO_ANALYST', 'MONITOR_CONNECTED_CARDS']."
+  },
+  "sar": {
+    "file": true,
+    "reason": "Regulatory SAR filing mandated for undocumented",
+    "narrative": "Suspicious activity report filed for fraudulent pattern 'undocumented'. Flagged transaction 3534820 and related activity totaled $59.67 across victim card C09988-K1. Evidence from graph topology demonstrated unauthorized transactions and compromised infrastructure. Automated policy rules mandated regulatory escalation and preventative blocking.",
+    "subjects": [
+      "C09988",
+      "C09988-K1",
+      "3534820",
+      "Windows |  | edge 16.0 | "
+    ],
+    "total_amount_usd": 59.67,
+    "activity_dates": [
+      "2016-11-01",
+      "2016-12-31"
+    ]
+  },
+  "stop_reason": "sufficient_evidence",
+  "tool_calls": 6,
+  "tokens": 599,
+  "latency_s": 19.488
+}

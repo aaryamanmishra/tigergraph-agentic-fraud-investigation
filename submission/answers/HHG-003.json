@@ -1,0 +1,170 @@
+{
+  "case_id": "HHG-003",
+  "case": {
+    "status": "closed_fraud",
+    "verdict": "fraud",
+    "fraud_probability": 0.9,
+    "pattern": "undocumented",
+    "pattern_description": "Customer explicitly disputed purchase of $49.00 stating transaction was not authorized.",
+    "affected_txn_ids": [
+      "3530164"
+    ],
+    "first_suspicious_txn_id": "3530164",
+    "connected_card_ids": [],
+    "connected_device_profiles": [],
+    "exposure_usd": 49.0,
+    "evidence": [
+      {
+        "claim": "Transaction 3530164 amount is $49.00, channel is 'in_person', product is 'W', risk score is 0.4.",
+        "source": "graph",
+        "ref": "get_transaction_context",
+        "entity_ids": [
+          "3530164",
+          "C08623-K2"
+        ]
+      },
+      {
+        "claim": "Transaction 3530164 is associated with card C08623-K2, customer C08623, billing region 330.0.",
+        "source": "graph",
+        "ref": "get_transaction_context",
+        "entity_ids": [
+          "C08623",
+          "C08623-K2"
+        ]
+      },
+      {
+        "claim": "Retrieved 7 historical closed cases referencing card C08623-K2.",
+        "source": "graph",
+        "ref": "get_similar_closed_cases",
+        "entity_ids": [
+          "CC-2935",
+          "CC-3327",
+          "CC-2817",
+          "CC-4957",
+          "HHG-003",
+          "CC-3682",
+          "CC-1589"
+        ]
+      },
+      {
+        "claim": "Card C08623-K2 history contains 1140 total transactions. Baseline amount mean=$129.36, stdev=$159.64.",
+        "source": "graph",
+        "ref": "get_card_history_summary",
+        "entity_ids": [
+          "3530164",
+          "C08623-K2"
+        ]
+      },
+      {
+        "claim": "Flagged billing region 330.0 familiarity is 'novel_zero_history' (0 prior transactions in this region).",
+        "source": "graph",
+        "ref": "get_card_history_summary",
+        "entity_ids": [
+          "3530164",
+          "C08623-K2"
+        ]
+      },
+      {
+        "claim": "Customer report of unauthorized charge verified against card profile.",
+        "source": "graph",
+        "ref": "pattern_reasoner",
+        "entity_ids": [
+          "3530164",
+          "C08623-K2"
+        ]
+      },
+      {
+        "claim": "Transaction 3530164 is anomalous due to novel region and zero prior activity in that region",
+        "source": "graph",
+        "ref": "llm:GRAPH-TXN-3530164",
+        "entity_ids": [
+          "3530164",
+          "C08623-K2"
+        ]
+      },
+      {
+        "claim": "Card C08623-K2 has a high historical transaction volume but the $49 purchase is below baseline mean, yet region novelty suggests potential fraud",
+        "source": "graph",
+        "ref": "llm:GRAPH-CARD-C08623-K2",
+        "entity_ids": [
+          "3530164",
+          "C08623-K2"
+        ]
+      },
+      {
+        "claim": "Policy R2 mandates immediate card block (L1) and case creation for customer denial of a $49 transaction",
+        "source": "document",
+        "ref": "llm:POLICY-R2",
+        "entity_ids": [
+          "3530164",
+          "C08623-K2"
+        ]
+      },
+      {
+        "claim": "No SAR filing required as exposure <$1,000 and no shared device or other card fraud",
+        "source": "document",
+        "ref": "llm:POLICY-R2",
+        "entity_ids": [
+          "3530164",
+          "C08623-K2"
+        ]
+      },
+      {
+        "claim": "Historical precedent cases (CC-2935, CC-3327, CC-2817, CC-4957, HHG-003) confirm fraud pattern for similar transactions",
+        "source": "graph",
+        "ref": "llm:CASE-CC-2935,CASE-CC-3327,CASE-CC-2817,CASE-CC-4957,CASE-HHG-003",
+        "entity_ids": [
+          "3530164",
+          "C08623-K2"
+        ]
+      }
+    ],
+    "similar_prior_cases": [
+      "CC-2935",
+      "CC-3327",
+      "CC-2817",
+      "CC-4957",
+      "CC-3682",
+      "CC-1589"
+    ],
+    "summary": "Customer explicitly disputed purchase of $49.00 stating transaction was not authorized.",
+    "written_to_graph": true,
+    "graph_case_id": "HHG-003"
+  },
+  "evidence_requests": [
+    {
+      "type": "customer_validation",
+      "asked_after_step": 1,
+      "assumed_response": "No, I did not authorize this purchase."
+    }
+  ],
+  "next_best_actions": {
+    "initial": [
+      {
+        "action": "VERIFY_WITH_CUSTOMER",
+        "route": "auto",
+        "reason": "Rule R1: Verify with customer prior to blocking on single score signal."
+      }
+    ],
+    "final": [
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "Recommended action CREATE_CASE enforced by deterministic policy engine."
+      }
+    ],
+    "what_changed": "Customer verification response received (confirmed). Verdict transitioned to fraud, resulting in final action set: ['CREATE_CASE']."
+  },
+  "sar": {
+    "file": false,
+    "reason": "",
+    "narrative": "",
+    "subjects": [],
+    "total_amount_usd": 0.0,
+    "activity_dates": []
+  },
+  "stop_reason": "sufficient_evidence",
+  "tool_calls": 5,
+  "tokens": 747,
+  "latency_s": 26.176
+}

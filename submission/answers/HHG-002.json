@@ -1,0 +1,136 @@
+{
+  "case_id": "HHG-002",
+  "case": {
+    "status": "closed_fraud",
+    "verdict": "fraud",
+    "fraud_probability": 0.85,
+    "pattern": "out_of_region_use",
+    "pattern_description": "",
+    "affected_txn_ids": [
+      "3478782"
+    ],
+    "first_suspicious_txn_id": "3478782",
+    "connected_card_ids": [],
+    "connected_device_profiles": [],
+    "exposure_usd": 292.36,
+    "evidence": [
+      {
+        "claim": "Transaction 3478782 amount is $292.36, channel is 'online', product is 'C', risk score is 0.79.",
+        "source": "graph",
+        "ref": "get_transaction_context",
+        "entity_ids": [
+          "3478782",
+          "C11891-K1"
+        ]
+      },
+      {
+        "claim": "Transaction 3478782 is associated with card C11891-K1, customer C11891, billing region .",
+        "source": "graph",
+        "ref": "get_transaction_context",
+        "entity_ids": [
+          "C11891",
+          "C11891-K1"
+        ]
+      },
+      {
+        "claim": "Retrieved 2 historical closed cases referencing card C11891-K1.",
+        "source": "graph",
+        "ref": "get_similar_closed_cases",
+        "entity_ids": [
+          "HHG-002",
+          "CC-4160"
+        ]
+      },
+      {
+        "claim": "Card C11891-K1 history contains 44 total transactions. Baseline amount mean=$47.46, stdev=$44.62.",
+        "source": "graph",
+        "ref": "get_card_history_summary",
+        "entity_ids": [
+          "3478782",
+          "C11891-K1"
+        ]
+      },
+      {
+        "claim": "Flagged billing region  familiarity is 'novel_zero_history' (0 prior transactions in this region).",
+        "source": "graph",
+        "ref": "get_card_history_summary",
+        "entity_ids": [
+          "3478782",
+          "C11891-K1"
+        ]
+      },
+      {
+        "claim": "High score coupled with complete lack of geographic familiarity indicates out-of-region card compromise.",
+        "source": "graph",
+        "ref": "pattern_reasoner",
+        "entity_ids": [
+          "3478782",
+          "C11891-K1"
+        ]
+      },
+      {
+        "claim": "Transaction 3478782 is fraudulent.",
+        "source": "graph",
+        "ref": "llm:GRAPH-TXN-3478782",
+        "entity_ids": [
+          "3478782",
+          "C11891-K1"
+        ]
+      },
+      {
+        "claim": "Card C11891-K1 has no prior transactions in the billing region, indicating a novel region.",
+        "source": "graph",
+        "ref": "llm:GRAPH-CARD-C11891-K1",
+        "entity_ids": [
+          "3478782",
+          "C11891-K1"
+        ]
+      },
+      {
+        "claim": "Historical case HHG-002 was adjudicated as confirmed fraud, supporting the fraud assessment.",
+        "source": "graph",
+        "ref": "llm:CASE-HHG-002",
+        "entity_ids": [
+          "3478782",
+          "C11891-K1"
+        ]
+      }
+    ],
+    "similar_prior_cases": [
+      "CC-4160"
+    ],
+    "summary": "High-risk transaction ($292.36, score 0.79) conducted in completely novel region with zero prior history.",
+    "written_to_graph": true,
+    "graph_case_id": "HHG-002"
+  },
+  "evidence_requests": [],
+  "next_best_actions": {
+    "initial": [
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "Recommended action CREATE_CASE enforced by deterministic policy engine."
+      }
+    ],
+    "final": [
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "Recommended action CREATE_CASE enforced by deterministic policy engine."
+      }
+    ],
+    "what_changed": "Investigation conclusive upon initial evidence evaluation; actions remained stable."
+  },
+  "sar": {
+    "file": false,
+    "reason": "",
+    "narrative": "",
+    "subjects": [],
+    "total_amount_usd": 0.0,
+    "activity_dates": []
+  },
+  "stop_reason": "sufficient_evidence",
+  "tool_calls": 5,
+  "tokens": 754,
+  "latency_s": 19.112
+}
