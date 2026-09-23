@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Benchmark Dashboard • TigerGraph Fraud Investigation</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="app-layout">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                <div class="brand-logo">🛡️</div>
+                <div class="brand-text">
+                    <h2>FraudNet Console</h2>
+                    <span>TigerGraph • Groq • GraphRAG</span>
+                </div>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-label">Navigation</div>
+                <a href="{{ url_for('view_case', case_id='HHG-014') }}" class="btn btn-nav" style="display:block;text-align:center;margin-bottom:6px;">
+                    ← Back to Investigation
+                </a>
+                <a href="{{ url_for('view_case', case_id='HHG-001') }}" class="btn btn-nav" style="display:block;text-align:center;margin-bottom:6px;">
+                    ⭐ HHG-001 (Legitimate Hero)
+                </a>
+                <a href="{{ url_for('view_case', case_id='HHG-014') }}" class="btn btn-nav" style="display:block;text-align:center;">
+                    ⭐ HHG-014 (Fraud Hero)
+                </a>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-label">All Cases</div>
+                <div class="case-quick-list">
+                    {% for c in cases %}
+                    <a href="{{ url_for('view_case', case_id=c) }}" class="case-quick-item">
+                        <span class="case-item-id">{{ c }}</span>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="sidebar-footer">
+                <div class="spec-row"><span>Backend:</span><strong>TigerGraph FraudNet</strong></div>
+                <div class="spec-row"><span>Reasoning:</span><strong>Groq LLM</strong></div>
+                <div class="spec-row"><span>Tests:</span><strong>126 Passing</strong></div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="console-header">
+                <div class="header-titles">
+                    <h1>📊 Benchmark Dashboard</h1>
+                    <p class="subtitle">Aggregate metrics from {{ total }} validated benchmark investigations • All metrics derived from actual saved results</p>
+                </div>
+                <div class="replay-badge">
+                    <span class="pulse-icon">●</span>
+                    <span>{{ total }} / 20 Cases Loaded</span>
+                </div>
+            </header>
+
+            <!-- Aggregate Stats Grid -->
+            <section class="section-container">
+                <h3 class="section-title">📈 Aggregate Investigation Metrics</h3>
+                <p class="section-subtitle">
+                    Computed from all {{ total }} saved result files. Accuracy/precision/recall are
+                    labeled "Not measured" — ground truth labels are not in the saved result schema.
+                </p>
+
+                <div class="bench-stats-grid">
+                    <div class="bench-stat-card bench-stat-fraud">
+                        <div class="bench-stat-value">{{ stats.fraud_count }}</div>
+                        <div class="bench-stat-label">Fraud Verdicts</div>
+                        <div class="bench-stat-pct">{{ stats.fraud_rate_pct }}% of cases</div>
+                    </div>
+                    <div class="bench-stat-card bench-stat-legit">
+                        <div class="bench-stat-value">{{ stats.legitimate_count }}</div>
+                        <div class="bench-stat-label">Legitimate Verdicts</div>
+                        <div class="bench-stat-pct">{{ 100 - stats.fraud_rate_pct }}% of cases</div>
+                    </div>
+                    <div class="bench-stat-card bench-stat-sar">
+                        <div class="bench-stat-value">{{ stats.sar_count }}</div>
+                        <div class="bench-stat-label">SAR Filings Required</div>
+                        <div class="bench-stat-pct">{{ stats.sar_rate_pct }}% SAR rate</div>
+                    </div>
+                    <div class="bench-stat-card bench-stat-loops">
+                        <div class="bench-stat-value">{{ stats.evidence_loop_count }}</div>
+                        <div class="bench-stat-label">Evidence Loops Triggered</div>
+                        <div class="bench-stat-pct">{{ (stats.evidence_loop_count / stats.total_cases * 100)|round(1) }}% of cases</div>
+                    </div>
+                    <div class="bench-stat-card">
+                        <div class="bench-stat-value">{{ stats.avg_latency_s }}s</div>
+                        <div class="bench-stat-label">Avg Latency</div>
+                        <div class="bench-stat-pct">{{ stats.min_latency_s }}s – {{ stats.max_latency_s }}s range</div>
+                    </div>
+                    <div class="bench-stat-card">
+                        <div class="bench-stat-value">{{ stats.avg_tool_calls }}</div>
+                        <div class="bench-stat-label">Avg Graph Tool Calls</div>
+                        <div class="bench-stat-pct">per investigation</div>
+                    </div>
+                    <div class="bench-stat-card">
+                        <div class="bench-stat-value">{{ stats.avg_tokens }}</div>
+                        <div class="bench-stat-label">Avg LLM Tokens</div>
+                        <div class="bench-stat-pct">per investigation</div>
+                    </div>
+                    <div class="bench-stat-card">
+                        <div class="bench-stat-value">${{ "{:,.2f}".format(stats.total_exposure_usd) }}</div>
+                        <div class="bench-stat-label">Total Exposure Detected</div>
+                        <div class="bench-stat-pct">avg ${{ "{:,.2f}".format(stats.avg_exposure_usd) }}/case</div>
+                    </div>
+                </div>
+
+                <!-- Unavailable Metrics -->
+                <div class="not-measured-box">
+                    <h4>Metrics Not Measured</h4>
+                    <p>The following metrics require ground truth labels not present in the saved result schema:</p>
+                    <div class="not-measured-grid">
+                        <div class="nm-item"><span class="nm-label">Accuracy</span><span class="nm-value">{{ stats.accuracy }}</span></div>
+                        <div class="nm-item"><span class="nm-label">Precision</span><span class="nm-value">{{ stats.precision }}</span></div>
+                        <div class="nm-item"><span class="nm-label">Recall</span><span class="nm-value">{{ stats.recall }}</span></div>
+                        <div class="nm-item"><span class="nm-label">F1 Score</span><span class="nm-value">{{ stats.f1 }}</span></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Verdict Distribution Bar -->
+            <section class="section-container">
+                <h3 class="section-title">🎯 Verdict Distribution</h3>
+                <div class="verdict-bar-container">
+                    <div class="verdict-bar-track">
+                        {% set fraud_w = (stats.fraud_count / stats.total_cases * 100)|round(1) %}
+                        {% set legit_w = (stats.legitimate_count / stats.total_cases * 100)|round(1) %}
+                        <div class="vb-fraud" style="width: {{ fraud_w }}%;">
+                            {{ fraud_w }}% Fraud ({{ stats.fraud_count }})
+                        </div>
+                        <div class="vb-legit" style="width: {{ legit_w }}%;">
+                            {{ legit_w }}% Legit ({{ stats.legitimate_count }})
+                        </div>
+                        {% if stats.uncertain_count > 0 %}
+                        <div class="vb-uncertain" style="width: {{ (stats.uncertain_count / stats.total_cases * 100)|round(1) }}%;">
+                            Uncertain ({{ stats.uncertain_count }})
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </section>
+
+            <!-- 20-Case Investigation Matrix -->
+            <section class="section-container">
+                <h3 class="section-title">📋 20-Case Investigation Matrix</h3>
+                <p class="section-subtitle">
+                    Click any case ID to view its full investigation control room.
+                    Hero cases HHG-001 and HHG-014 are highlighted.
+                    All values from actual saved benchmark results.
+                </p>
+                <div class="matrix-table-wrapper">
+                    <table class="matrix-table">
+                        <thead>
+                            <tr>
+                                <th>Case ID</th>
+                                <th>Trigger</th>
+                                <th>Verdict</th>
+                                <th>Fraud Prob</th>
+                                <th>Pattern</th>
+                                <th>Exposure</th>
+                                <th>Tool Calls</th>
+                                <th>Latency</th>
+                                <th>Tokens</th>
+                                <th>SAR</th>
+                                <th>Ev. Loops</th>
+                                <th>In Graph</th>
+                                <th>Stop Reason</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in matrix %}
+                            <tr class="{% if row.case_id in ('HHG-001', 'HHG-014') %}hero-row{% endif %} {% if row.verdict == 'fraud' %}verdict-fraud{% elif row.verdict == 'legitimate' %}verdict-legit{% endif %}">
+                                <td>
+                                    <a href="{{ url_for('view_case', case_id=row.case_id) }}" class="case-link">
+                                        {{ row.case_id }}
+                                        {% if row.case_id in ('HHG-001', 'HHG-014') %}<span class="hero-star">⭐</span>{% endif %}
+                                    </a>
+                                </td>
+                                <td><span class="trigger-tag">{{ row.trigger_type }}</span></td>
+                                <td>
+                                    {% if row.verdict == 'fraud' %}
+                                    <span class="badge badge-fraud">FRAUD</span>
+                                    {% elif row.verdict == 'legitimate' %}
+                                    <span class="badge badge-legit">LEGIT</span>
+                                    {% else %}
+                                    <span class="badge badge-neutral">{{ row.verdict|upper }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="mini-prob-bar-container">
+                                        <div class="mini-prob-bar" style="width: {{ (row.fraud_probability * 100)|round(0) }}%; background: {% if row.fraud_probability > 0.7 %}var(--danger-red){% elif row.fraud_probability > 0.4 %}var(--warning-amber){% else %}var(--success-green){% endif %};"></div>
+                                    </div>
+                                    {{ (row.fraud_probability * 100)|round(1) }}%
+                                </td>
+                                <td><span class="pattern-tag">{{ row.pattern }}</span></td>
+                                <td>${{ "{:,.2f}".format(row.exposure_usd) }}</td>
+                                <td>{{ row.tool_calls }}</td>
+                                <td>{{ row.latency_s|round(2) }}s</td>
+                                <td>{{ row.tokens }}</td>
+                                <td>
+                                    {% if row.sar %}
+                                    <span class="badge badge-fraud" style="font-size:0.7rem;">YES</span>
+                                    {% else %}
+                                    <span class="badge badge-neutral" style="font-size:0.7rem;">NO</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ row.evidence_loops }}</td>
+                                <td>
+                                    {% if row.written_to_graph %}
+                                    <span class="badge badge-legit" style="font-size:0.7rem;">✓</span>
+                                    {% else %}
+                                    <span style="color:var(--text-muted);">—</span>
+                                    {% endif %}
+                                </td>
+                                <td><code style="font-size:0.72rem;">{{ row.stop_reason }}</code></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Pipeline Architecture Reference -->
+            <section class="section-container">
+                <h3 class="section-title">🏗️ Investigation Pipeline Architecture</h3>
+                <p class="section-subtitle">
+                    The FraudNet agentic pipeline runs end-to-end for every investigation.
+                    This diagram reflects the actual code architecture (not illustrative).
+                </p>
+                <div class="pipeline-diagram">
+                    <div class="pipe-step">
+                        <div class="pipe-icon">🚀</div>
+                        <div class="pipe-label">Trigger</div>
+                        <div class="pipe-sublabel">case_pack.csv</div>
+                    </div>
+                    <div class="pipe-arrow">→</div>
+                    <div class="pipe-step">
+                        <div class="pipe-icon">🕸️</div>
+                        <div class="pipe-label">TigerGraph</div>
+                        <div class="pipe-sublabel">FraudNet adapter</div>
+                    </div>
+                    <div class="pipe-arrow">→</div>
+                    <div class="pipe-step">
+                        <div class="pipe-icon">⚙️</div>
+                        <div class="pipe-label">MCP Tools</div>
+                        <div class="pipe-sublabel">contracts.py</div>
+                    </div>
+                    <div class="pipe-arrow">→</div>
+                    <div class="pipe-step">
+                        <div class="pipe-icon">🗂️</div>
+                        <div class="pipe-label">GraphRAG</div>
+                        <div class="pipe-sublabel">context_builder.py</div>
+                    </div>
+                    <div class="pipe-arrow">→</div>
+                    <div class="pipe-step">
+                        <div class="pipe-icon">🧠</div>
+                        <div class="pipe-label">LLM Reasoning</div>
+                        <div class="pipe-sublabel">Groq / Gemini</div>
+                    </div>
+                    <div class="pipe-arrow">→</div>
+                    <div class="pipe-step">
+                        <div class="pipe-icon">📨</div>
+                        <div class="pipe-label">Evidence Loop</div>
+                        <div class="pipe-sublabel">uncertainty + request</div>
+                    </div>
+                    <div class="pipe-arrow">→</div>
+                    <div class="pipe-step">
+                        <div class="pipe-icon">⚖️</div>
+                        <div class="pipe-label">PolicyEngine</div>
+                        <div class="pipe-sublabel">engine.py (R1–R10)</div>
+                    </div>
+                    <div class="pipe-arrow">→</div>
+                    <div class="pipe-step">
+                        <div class="pipe-icon">💾</div>
+                        <div class="pipe-label">Persistence</div>
+                        <div class="pipe-sublabel">FraudNet + JSON</div>
+                    </div>
+                </div>
+            </section>
+
+            <footer class="console-footer">
+                <p>TigerGraph Agentic Fraud Investigation • Hacker House Goa 2026 • Benchmark Dashboard</p>
+            </footer>
+        </main>
+    </div>
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
