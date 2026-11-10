@@ -300,4 +300,7 @@ PYTHONPATH=. .venv/bin/python -m evaluation.run_single_case \
 ## License / Attribution
 
 Built for Hacker House Goa 2026.
-Dataset attribution and original benchmark/policy material: `docs/hackathon_dataset_and_policy.md`
+
+Dataset attribution and original benchmark/policy material: `docs/hackathon_dataset_and_policy.md`.
+
+**Reuse note:** This repository does not currently include a `LICENSE` file. Until a license is added, the repository does not grant an explicit open-source reuse license.
